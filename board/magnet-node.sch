@@ -10275,6 +10275,8 @@ Source: www.kingbright.com</description>
 <sheets>
 <sheet>
 <plain>
+<text x="48.26" y="132.08" size="1.778" layer="91">remove?</text>
+<text x="109.22" y="60.96" size="1.778" layer="91" rot="R90">remove?</text>
 </plain>
 <instances>
 <instance part="U$1" gate="G$1" x="50.8" y="43.18"/>
