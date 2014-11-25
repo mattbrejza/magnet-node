@@ -11786,12 +11786,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="124.46" y1="129.54" x2="134.62" y2="129.54" width="0.1524" layer="91"/>
 </segment>
 </net>
-<net name="N$1" class="0">
-<segment>
-<pinref part="X1" gate="G$1" pin="GPIO2"/>
-<wire x1="83.82" y1="210.82" x2="71.12" y2="210.82" width="0.1524" layer="91"/>
-</segment>
-</net>
 </nets>
 </sheet>
 </sheets>
