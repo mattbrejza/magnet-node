@@ -10992,7 +10992,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
 <part name="+3V5" library="supply1" deviceset="+3V3" device=""/>
 <part name="C1" library="rcl" deviceset="C-EU" device="C0603" value="4u7"/>
-<part name="C5" library="rcl" deviceset="C-EU" device="C0603" value="4u7"/>
+<part name="C5" library="rcl" deviceset="C-EU" device="C0805" value="4u7"/>
 <part name="GND11" library="supply1" deviceset="GND" device=""/>
 <part name="GND12" library="supply1" deviceset="GND" device=""/>
 <part name="C2" library="rcl" deviceset="C-EU" device="C0603" value="1u"/>
@@ -11080,7 +11080,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <instance part="R3" gate="G$1" x="165.1" y="104.14"/>
 <instance part="R2" gate="G$1" x="165.1" y="91.44"/>
 <instance part="GND9" gate="1" x="177.8" y="91.44" rot="R270"/>
-<instance part="+3V5" gate="G$1" x="241.3" y="104.14" rot="R270"/>
+<instance part="+3V5" gate="G$1" x="248.92" y="104.14" rot="R270"/>
 <instance part="C1" gate="G$1" x="213.36" y="101.6"/>
 <instance part="C5" gate="G$1" x="238.76" y="101.6"/>
 <instance part="GND11" gate="1" x="238.76" y="93.98"/>
@@ -11353,9 +11353,11 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <segment>
 <pinref part="+3V5" gate="G$1" pin="+3V3"/>
 <pinref part="C5" gate="G$1" pin="1"/>
-<junction x="238.76" y="104.14"/>
+<junction x="246.38" y="104.14"/>
 <pinref part="IC1" gate="A1" pin="VO"/>
 <wire x1="236.22" y1="104.14" x2="238.76" y2="104.14" width="0.1524" layer="91"/>
+<junction x="238.76" y="104.14"/>
+<wire x1="246.38" y1="104.14" x2="238.76" y2="104.14" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="SV1" gate="G$1" pin="2"/>
