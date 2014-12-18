@@ -4304,15 +4304,15 @@ Source: www.kingbright.com</description>
 <part name="J2" library="dtb" deviceset="JST_2MM_MALE_TH" device=""/>
 <part name="+3V4" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND8" library="supply1" deviceset="GND" device=""/>
-<part name="C4" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
-<part name="C5" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
-<part name="C6" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
-<part name="C7" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
+<part name="C4" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="2.4p"/>
+<part name="C5" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="2.4p"/>
+<part name="C6" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="1.2p"/>
+<part name="C7" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="5.1p"/>
 <part name="GND9" library="supply1" deviceset="GND" device=""/>
 <part name="+3V5" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND10" library="supply1" deviceset="GND" device=""/>
 <part name="GND11" library="supply1" deviceset="GND" device=""/>
-<part name="C8" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
+<part name="C8" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="5.1p"/>
 <part name="GND12" library="supply1" deviceset="GND" device=""/>
 <part name="X1" library="con-coax" deviceset="SMA-" device="142-0701-801/806"/>
 <part name="GND13" library="supply1" deviceset="GND" device=""/>
@@ -4341,17 +4341,18 @@ Source: www.kingbright.com</description>
 <part name="R5" library="passives-7351" deviceset="RESISTOR" device="0603-N"/>
 <part name="+3V7" library="supply1" deviceset="+3V3" device=""/>
 <part name="+3V9" library="supply1" deviceset="+3V3" device=""/>
-<part name="L1" library="passives-7351" deviceset="INDUCTOR" device="0402-N"/>
-<part name="L2" library="passives-7351" deviceset="INDUCTOR" device="0402-N"/>
-<part name="L3" library="passives-7351" deviceset="INDUCTOR" device="0402-N"/>
-<part name="L4" library="passives-7351" deviceset="INDUCTOR" device="0402-N"/>
-<part name="L5" library="passives-7351" deviceset="INDUCTOR" device="0402-N"/>
+<part name="L1" library="passives-7351" deviceset="INDUCTOR" device="0402-N" value="30n"/>
+<part name="L2" library="passives-7351" deviceset="INDUCTOR" device="0402-N" value="6.8n"/>
+<part name="L3" library="passives-7351" deviceset="INDUCTOR" device="0402-N" value="3.6n"/>
+<part name="L4" library="passives-7351" deviceset="INDUCTOR" device="0402-N" value="3.6n"/>
+<part name="L5" library="passives-7351" deviceset="INDUCTOR" device="0402-N" value="120n"/>
 </parts>
 <sheets>
 <sheet>
 <plain>
 <text x="48.26" y="132.08" size="1.778" layer="91">remove?</text>
 <text x="109.22" y="60.96" size="1.778" layer="91" rot="R90">remove?</text>
+<text x="154.94" y="73.66" size="1.778" layer="91">CHANGE FOR 0603</text>
 </plain>
 <instances>
 <instance part="U$1" gate="G$1" x="50.8" y="43.18"/>

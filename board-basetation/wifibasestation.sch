@@ -11045,6 +11045,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <text x="154.94" y="88.9" size="1.778" layer="91">NC if 072 used</text>
 <text x="154.94" y="106.68" size="1.778" layer="91">NC if 072 used</text>
 <text x="58.42" y="167.64" size="1.778" layer="91">spec</text>
+<text x="205.74" y="96.52" size="1.778" layer="91" rot="R90">ADD INDUCTOR</text>
 </plain>
 <instances>
 <instance part="IC2" gate="G$1" x="93.98" y="68.58"/>
