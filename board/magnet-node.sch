@@ -5063,13 +5063,13 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <part name="L5" library="passives-7351" deviceset="INDUCTOR" device="0603-N" value="120n"/>
 <part name="TP4" library="testpad" deviceset="TP" device="TP14SQ"/>
 <part name="TP1" library="testpad" deviceset="TP" device="TP14SQ"/>
+<part name="+3V6" library="supply1" deviceset="+3V3" device=""/>
 </parts>
 <sheets>
 <sheet>
 <plain>
 <text x="48.26" y="132.08" size="1.778" layer="91">remove?</text>
 <text x="109.22" y="60.96" size="1.778" layer="91" rot="R90">remove?</text>
-<text x="154.94" y="73.66" size="1.778" layer="91">CHANGE FOR 0603</text>
 </plain>
 <instances>
 <instance part="U$1" gate="G$1" x="50.8" y="43.18"/>
@@ -5133,8 +5133,9 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <instance part="L3" gate="G$1" x="165.1" y="58.42" rot="R90"/>
 <instance part="L4" gate="G$1" x="162.56" y="58.42" rot="R90"/>
 <instance part="L5" gate="G$1" x="162.56" y="73.66" rot="R90"/>
-<instance part="TP4" gate="G$1" x="68.58" y="45.72" rot="R270"/>
-<instance part="TP1" gate="G$1" x="68.58" y="48.26" rot="R270"/>
+<instance part="TP4" gate="G$1" x="66.04" y="45.72" rot="R270"/>
+<instance part="TP1" gate="G$1" x="66.04" y="48.26" rot="R270"/>
+<instance part="+3V6" gate="G$1" x="50.8" y="119.38" rot="R90"/>
 </instances>
 <busses>
 </busses>
@@ -5257,6 +5258,25 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <pinref part="L5" gate="G$1" pin="P$2"/>
 <pinref part="+3V5" gate="G$1" pin="+3V3"/>
 <wire x1="162.56" y1="78.74" x2="162.56" y2="81.28" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="R4" gate="G$1" pin="P$2"/>
+<wire x1="121.92" y1="63.5" x2="121.92" y2="66.04" width="0.1524" layer="91"/>
+<wire x1="121.92" y1="66.04" x2="119.38" y2="66.04" width="0.1524" layer="91"/>
+<pinref part="R5" gate="G$1" pin="P$2"/>
+<wire x1="119.38" y1="63.5" x2="119.38" y2="66.04" width="0.1524" layer="91"/>
+<label x="111.76" y="66.04" size="1.778" layer="95" rot="R180" xref="yes"/>
+<pinref part="+3V9" gate="G$1" pin="+3V3"/>
+<wire x1="119.38" y1="68.58" x2="119.38" y2="66.04" width="0.1524" layer="91"/>
+<junction x="119.38" y="66.04"/>
+</segment>
+<segment>
+<pinref part="C12" gate="G$1" pin="1"/>
+<wire x1="55.88" y1="119.38" x2="53.34" y2="119.38" width="0.1524" layer="91"/>
+<label x="53.34" y="124.46" size="1.778" layer="95" rot="R90" xref="yes"/>
+<pinref part="IC1" gate="G$1" pin="VDD"/>
+<pinref part="+3V6" gate="G$1" pin="+3V3"/>
+<junction x="53.34" y="119.38"/>
 </segment>
 </net>
 <net name="N$2" class="0">
@@ -5502,14 +5522,12 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <net name="N$11" class="0">
 <segment>
 <pinref part="U$1" gate="G$1" pin="P1.1"/>
-<wire x1="63.5" y1="48.26" x2="66.04" y2="48.26" width="0.1524" layer="91"/>
 <pinref part="TP1" gate="G$1" pin="TP"/>
 </segment>
 </net>
 <net name="N$14" class="0">
 <segment>
 <pinref part="U$1" gate="G$1" pin="P1.2"/>
-<wire x1="66.04" y1="45.72" x2="63.5" y2="45.72" width="0.1524" layer="91"/>
 <pinref part="TP4" gate="G$1" pin="TP"/>
 </segment>
 </net>
@@ -5518,24 +5536,6 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <pinref part="U$1" gate="G$1" pin="P2.6/XIN"/>
 <wire x1="25.4" y1="38.1" x2="20.32" y2="38.1" width="0.1524" layer="91"/>
 <label x="20.32" y="38.1" size="1.778" layer="95"/>
-</segment>
-<segment>
-<pinref part="C12" gate="G$1" pin="1"/>
-<wire x1="55.88" y1="119.38" x2="53.34" y2="119.38" width="0.1524" layer="91"/>
-<wire x1="53.34" y1="119.38" x2="53.34" y2="124.46" width="0.1524" layer="91"/>
-<label x="53.34" y="124.46" size="1.778" layer="95" rot="R90" xref="yes"/>
-<pinref part="IC1" gate="G$1" pin="VDD"/>
-<junction x="53.34" y="119.38"/>
-</segment>
-<segment>
-<pinref part="R4" gate="G$1" pin="P$2"/>
-<wire x1="121.92" y1="63.5" x2="121.92" y2="66.04" width="0.1524" layer="91"/>
-<wire x1="121.92" y1="66.04" x2="119.38" y2="66.04" width="0.1524" layer="91"/>
-<pinref part="R5" gate="G$1" pin="P$2"/>
-<wire x1="119.38" y1="66.04" x2="111.76" y2="66.04" width="0.1524" layer="91"/>
-<wire x1="119.38" y1="63.5" x2="119.38" y2="66.04" width="0.1524" layer="91"/>
-<label x="111.76" y="66.04" size="1.778" layer="95" rot="R180" xref="yes"/>
-<junction x="119.38" y="66.04"/>
 </segment>
 </net>
 </nets>
