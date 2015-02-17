@@ -1066,7 +1066,7 @@ design rules under a new name.</description>
 <attribute name="PROD_ID" value="SWCH-00815" x="42.164" y="3.048" size="1.778" layer="27" display="off"/>
 <attribute name="NAME" x="37.338" y="1.016" size="1.016" layer="25" font="vector" ratio="14"/>
 </element>
-<element name="R6" library="passives-7351" package="R0603-N" value="1k" x="35.814" y="4.572" smashed="yes">
+<element name="R6" library="passives-7351" package="R0603-N" value="4k7" x="35.814" y="4.572" smashed="yes">
 <attribute name="NAME" x="35.179" y="2.794" size="1.016" layer="25" font="vector" ratio="14"/>
 </element>
 <element name="U$3" library="Mine" package="ESP-07" value="ESP-07" x="35.56" y="1.27" rot="MR0"/>

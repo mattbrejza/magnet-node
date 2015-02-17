@@ -5616,7 +5616,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <part name="GND14" library="supply1" deviceset="GND" device=""/>
 <part name="GND22" library="supply1" deviceset="GND" device=""/>
 <part name="+3V14" library="supply1" deviceset="+3V3" device=""/>
-<part name="R6" library="passives-7351" deviceset="RESISTOR" device="0603-N" value="1k"/>
+<part name="R6" library="passives-7351" deviceset="RESISTOR" device="0603-N" value="4k7"/>
 <part name="+3V15" library="supply1" deviceset="+3V3" device=""/>
 <part name="U$3" library="Mine" deviceset="ESP-07" device=""/>
 <part name="GND23" library="supply1" deviceset="GND" device=""/>

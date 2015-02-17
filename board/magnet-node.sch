@@ -3890,7 +3890,7 @@ Source: www.kingbright.com</description>
 <part name="LED2" library="led" deviceset="LED" device="SMT1206"/>
 <part name="IC2" library="Mine" deviceset="HTU21D" device=""/>
 <part name="GND17" library="supply1" deviceset="GND" device=""/>
-<part name="C4" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
+<part name="C4" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="100n"/>
 <part name="GND18" library="supply1" deviceset="GND" device=""/>
 <part name="R4" library="passives-7351" deviceset="RESISTOR" device="0603-N" value="4k7"/>
 <part name="R5" library="passives-7351" deviceset="RESISTOR" device="0603-N" value="4k7"/>
