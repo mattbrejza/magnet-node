@@ -160,7 +160,7 @@ void si4012_set_fsk_params(uint8_t shift, uint16_t bitrate, uint32_t frequency)
 {
 	uint8_t buff[6];
 
-	buff[0] = 0x08; // external XO, MSB first, positive dev.
+	buff[0] = 0x08 | 0; // external XO, MSB first, positive dev.
 	set_property(0x10, &buff[0], 1);
 
 	buff[0] = 1; //set fsk
@@ -216,19 +216,19 @@ uint8_t get_int_status(uint8_t *int_status)
 	return status;
 }
 
-uint8_t si4012_transmit_short(uint8_t *buff, uint8_t len)
+void si4012_transmit_short(uint8_t *buff, uint8_t len)
 {
-	uint8_t r;
+//	uint8_t r;
 
-	r = init_fifo();
-	if (r != 0x80)
-		return r;
-
+	init_fifo();
+//	if (r != 0x80)
+//		return r;
+//
 	si4012_set_fsk_params(_shift, _bitrate, _frequency);  //needs to be repeated after every sleep?
 
-	r = set_fifo(buff, len);
-	if (r != 0x80)
-		return r;
+	set_fifo(buff, len);
+//	if (r != 0x80)
+//		return r;
 
 	uint8_t txbuff[5];
 
@@ -240,21 +240,21 @@ uint8_t si4012_transmit_short(uint8_t *buff, uint8_t len)
 	txbuff[3] = 0;
 	txbuff[4] = 0;
 
-	r = tx_start(txbuff,5);
-	if (r != 0x80)
-		return r;
+	tx_start(txbuff,5);
+//	if (r != 0x80)
+//		return r;
 
 	txbuff[0] = 0;
 	volatile unsigned int i;
 	while((txbuff[0] & 0x08) == 0){
 		//for (i = 0; i < 5000; i++);
 		__bis_SR_register(LPM0_bits);
-		r = get_int_status(&txbuff[0]);
+		get_int_status(&txbuff[0]);
 	}
 
 //	P1OUT |= 0x01;      //enable shutdown
 
-	return r;
+//	return r;
 
 
 }

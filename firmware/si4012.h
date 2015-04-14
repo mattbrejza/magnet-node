@@ -12,7 +12,7 @@
 
 void si4012_init(uint8_t shift, uint16_t bitrate, uint32_t frequency);
 void si4012_sleep(void);
-uint8_t si4012_transmit_short(uint8_t *buff, uint8_t len);
+void si4012_transmit_short(uint8_t *buff, uint8_t len);
 
 
 

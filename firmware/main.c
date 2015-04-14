@@ -14,10 +14,13 @@ static const uint8_t shift = 8;
 static const uint16_t bitrate = 0x14;
 static const uint32_t frequency = 869550000;
 
+#define CRC_START 0x1D0F
+
+uint16_t crc_xmodem_update (uint16_t crc, uint8_t data);
 void format_hasnet_string(uint8_t *buff, uint8_t humidity, uint8_t volts10, int16_t temp10);
 
 //                      PRE   PRE   PRE  SYNC  SYNC  LEN
-uint8_t buf_out[26] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA, 0x00, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','H','h','h','[','M','B','1',']'};
+uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','H','h','h','[','M','B','1',']',0,0};
 
 
 int main(void) {
@@ -69,12 +72,23 @@ int main(void) {
 
 		format_hasnet_string(&buf_out[6],humid,volts,temp);
 
+		uint16_t crc = CRC_START;
+		uint8_t i;
+		for (i = 5; i < (sizeof(buf_out)-2); i++)
+			crc = crc_xmodem_update(crc,buf_out[i]);
+
+		crc = 0xFFFF - crc;  //invert for some reason
+
+		buf_out[(sizeof(buf_out)-2)] = (crc>>8)&0xFF;
+		buf_out[(sizeof(buf_out)-1)] = crc&0xFF;
+
+
 		si4012_transmit_short(buf_out, sizeof(buf_out));
 
-/*		P1OUT |= 0x01;      //enable shutdown
+		P1OUT |= 0x01;      //enable shutdown
 
 		//go to sleep for a while
-		CCR0 = 3000;  //increase to 28000 or so
+		CCR0 = 20000;  //increase to 28000 or so
 		TACTL = TASSEL_1 + MC_1;        // ACLK, up mode (to CCR0)
 		TAR = 0; 						//reset the timer
 		__bis_SR_register(LPM3_bits);
@@ -82,7 +96,7 @@ int main(void) {
 		//__bis_SR_register(LPM3_bits);
 		//WDTCTL = WDT_ARST_1000;
 		//__bis_SR_register(LPM3_bits);
-*/
+
      }
 
 
@@ -95,6 +109,19 @@ __interrupt void Timer_A (void)
 	__bic_SR_register_on_exit(LPM3_bits);   // Clear LPM0 bits from 0(SR)
 }
 
+// see http://www.atmel.com/webdoc/AVRLibcReferenceManual/group__util__crc_1gaca726c22a1900f9bad52594c8846115f.html
+uint16_t crc_xmodem_update (uint16_t crc, uint8_t data) {
+    crc = crc ^ ((uint16_t) data << 8);
+    uint8_t i;
+    for (i=8; i>0; i--) {
+        if (crc & 0x8000) {
+            crc = (crc << 1) ^ 0x1021;
+        } else {
+            crc <<= 1;
+        }
+    }
+    return crc;
+}
 
 void format_hasnet_string(uint8_t *buff, uint8_t humidity, uint8_t volts10, int16_t temp10)
 {
@@ -144,7 +171,6 @@ void format_hasnet_string(uint8_t *buff, uint8_t humidity, uint8_t volts10, int1
 	buff[9] = t+48;
 	t = temp10%10;
 	buff[11] = t+48;
-
 
 	sequence++;
 	if (sequence == ((uint8_t)'z'+1))
