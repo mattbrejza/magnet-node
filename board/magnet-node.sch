@@ -3882,7 +3882,7 @@ Source: www.kingbright.com</description>
 <part name="GND14" library="supply1" deviceset="GND" device=""/>
 <part name="GND15" library="supply1" deviceset="GND" device=""/>
 <part name="R3" library="passives-7351" deviceset="RESISTOR" device="0603-N" value="22k"/>
-<part name="C10" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="47n"/>
+<part name="C10" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="2n2"/>
 <part name="GND16" library="supply1" deviceset="GND" device=""/>
 <part name="+3V8" library="supply1" deviceset="+3V3" device=""/>
 <part name="C1" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="100n"/>
