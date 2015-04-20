@@ -244,12 +244,12 @@ void si4012_transmit_short(uint8_t *buff, uint8_t len)
 //	if (r != 0x80)
 //		return r;
 
-	txbuff[0] = 0;
+	uint8_t k = 0;
 	volatile unsigned int i;
-	while((txbuff[0] & 0x08) == 0){
+	while((k & 0x08) == 0){
 		//for (i = 0; i < 5000; i++);
 		__bis_SR_register(LPM0_bits);
-		get_int_status(&txbuff[0]);
+		get_int_status(&k);
 	}
 
 //	P1OUT |= 0x01;      //enable shutdown

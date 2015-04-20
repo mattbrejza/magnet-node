@@ -10,7 +10,7 @@ uint8_t sequence = 'a';
 volatile int16_t temp;
 volatile uint16_t humid,adco,volts;
 
-static const uint8_t shift = 8;
+static const uint8_t shift = 6;
 static const uint16_t bitrate = 0x14;
 static const uint32_t frequency = 869550000;
 
@@ -88,7 +88,7 @@ int main(void) {
 		P1OUT |= 0x01;      //enable shutdown
 
 		//go to sleep for a while
-		CCR0 = 20000;  //increase to 28000 or so
+		CCR0 = 3500;  //increase to 28000 or so
 		TACTL = TASSEL_1 + MC_1;        // ACLK, up mode (to CCR0)
 		TAR = 0; 						//reset the timer
 		__bis_SR_register(LPM3_bits);
@@ -161,6 +161,8 @@ void format_hasnet_string(uint8_t *buff, uint8_t humidity, uint8_t volts10, int1
 	int8_t t = temp10/10;
 	if (temp10 < 0)
 		buff[7] = '-';
+	else
+		buff[7] = '0';
 	if ((t<10) && (t > -10))
 		buff[8] = '0';
 	else{
