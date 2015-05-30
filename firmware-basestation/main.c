@@ -17,13 +17,24 @@
 #include <stdio.h>
 
 #include "main.h"
+#include "esp8266.h"
+#include "htu21.h"
+#include "RFM69.h"
+
+#include "wifipass.h"
+
 
 
 uint8_t buff;
+uint8_t flag_rx = 0;
 
 void init(void);
 void _delay_ms(const uint32_t delay);
 void uart_send_blocking_len(uint8_t *buff, uint16_t len);
+uint8_t add_node_to_packet(char* inout, uint8_t len, uint8_t maxlen);
+uint8_t construct_upload_string(char* outbuff, char* inbuff, int8_t rssi, uint8_t maxlen);
+
+const char node_name[] = "MB30";
 
 
 void init_wdt(void)
@@ -44,6 +55,7 @@ void init_wdt(void)
 
 }
 
+/*
 void usart1_isr(void)
 {
 	if (((USART_ISR(USART1) & USART_ISR_RXNE) != 0))
@@ -69,51 +81,36 @@ void usart2_isr(void)
 		USART1_ICR = USART_ICR_ORECF;
 	}
 }
+*/
 
 void init (void)
 {
+
 	rcc_clock_setup_in_hsi_out_8mhz();
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOC);
 
 
-/*
-	//UI stuff
-	//rotary encoder A,B: B12,A15; middle: B14
-	gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO12 | GPIO14);
-	gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO15);
-	//enable interrupts (just on one input)
-
-	RCC_APB2ENR |= (1<<0);
-	exti_select_source(EXTI14, GPIOB);
-	exti_set_trigger(EXTI14, EXTI_TRIGGER_FALLING);
-	exti_enable_request(EXTI14);
-	exti_select_source(EXTI12, GPIOB);
-	exti_set_trigger(EXTI12, EXTI_TRIGGER_BOTH);
-	exti_enable_request(EXTI12);
-	nvic_enable_irq(NVIC_EXTI4_15_IRQ);
-	exti_select_source(EXTI15, GPIOA);
-	exti_set_trigger(EXTI15, EXTI_TRIGGER_BOTH);
-	exti_enable_request(EXTI15);
-
-	//menu button B6; preset button A5
-	gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO6);
-	gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_PULLUP, GPIO5);
-	exti_select_source(EXTI6, GPIOB);
-	exti_set_trigger(EXTI6, EXTI_TRIGGER_FALLING);
-	exti_enable_request(EXTI6);
-	exti_select_source(EXTI5, GPIOA);
-	exti_set_trigger(EXTI5, EXTI_TRIGGER_FALLING);
-	exti_enable_request(EXTI5);
-*/
 	//leds
 	gpio_mode_setup(LED_AUX_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_AUX_PIN);
 	gpio_mode_setup(LED_868_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_868_PIN);
 	gpio_mode_setup(LED_WIFI_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_WIFI_PIN);
 	gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
-	gpio_set(LED_868_PORT,LED_868_PIN);
+	gpio_clear(LED_868_PORT,LED_868_PIN);
 	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
+
+
+	//radio interrupt
+	gpio_mode_setup(RADIO_INT_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN, RADIO_INT_PIN);
+
+	//enable interrupts (just on one input)
+	RCC_APB2ENR |= (1<<0);
+	exti_select_source(EXTI8, RADIO_INT_PORT);
+	exti_set_trigger(EXTI8, EXTI_TRIGGER_RISING);
+	exti_enable_request(EXTI8);
+	nvic_enable_irq(NVIC_EXTI4_15_IRQ);
+
 
 	//systick
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
@@ -121,22 +118,6 @@ void init (void)
 	systick_interrupt_enable();
 	systick_counter_enable();
 
-/*
-	//uart
-	//nvic_enable_irq(NVIC_USART1_IRQ);
-	rcc_periph_clock_enable(RCC_USART1);
-	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO9|GPIO10);
-	gpio_set_af(GPIOA, GPIO_AF1, GPIO9|GPIO10);
-	usart_set_baudrate(USART1, 115200);//9600 );
-	usart_set_databits(USART1, 8);
-	usart_set_stopbits(USART1, USART_CR2_STOP_1_0BIT);
-	usart_set_mode(USART1, USART_MODE_TX_RX);
-	usart_set_parity(USART1, USART_PARITY_NONE);
-	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
-	usart_enable(USART1);
-*/
-
-	//adc_start_conversion_regular(ADC1);
 
 	rcc_periph_clock_enable(RCC_USART1);
 	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6|GPIO7);
@@ -149,7 +130,7 @@ void init (void)
 	usart_set_flow_control(USART1, USART_FLOWCONTROL_NONE);
 	usart_enable_rx_interrupt(USART1);
 	usart_enable(USART1);
-//	nvic_enable_irq(NVIC_USART1_IRQ);
+	nvic_enable_irq(NVIC_USART1_IRQ);
 
 	rcc_periph_clock_enable(RCC_USART2);
 	gpio_mode_setup(GPIOA, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO2|GPIO3);
@@ -162,94 +143,137 @@ void init (void)
 	usart_set_flow_control(USART2, USART_FLOWCONTROL_NONE);
 	usart_enable_rx_interrupt(USART2);
 	usart_enable(USART2);
-//	nvic_enable_irq(NVIC_USART2_IRQ);
 
-	//startup esp
-	rcc_periph_clock_enable(RCC_GPIOA);
-	rcc_periph_clock_enable(RCC_GPIOF);
-	//CH_PD, GPIO0 high; GPIO15 low
-	//RST low->high
-	gpio_mode_setup(GPIOF,GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0|GPIO1);
-	gpio_clear(GPIOF,GPIO0|GPIO1);  //RST low
-	gpio_mode_setup(GPIOA,GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0|GPIO1); //GPIO0/15
+	esp_init();
 
-	gpio_set(GPIOA,GPIO0);  //GPIO0 high
-	gpio_clear(GPIOA,GPIO1);//GPIO15 low
-	gpio_set(GPIOF,GPIO0); //CH_PD high
-	_delay_ms(100);
-	gpio_set(GPIOF,GPIO1); //RST high
+	rf69_init();
 
 }
 
-/*
-void exti4_15_isr(void)
+
+
+void usart1_isr(void)
 {
-
-	if ((EXTI_PR & (GPIO12)) != 0 || ((EXTI_PR & (GPIO15)) != 0))  //rotary encoder irq
+	if (((USART_ISR(USART1) & USART_ISR_RXNE) != 0))
 	{
-
-		if ((EXTI_PR & (GPIO15)) != 0)
-			EXTI_PR |= (GPIO15);
-		if ((EXTI_PR & (GPIO12)) != 0)
-			EXTI_PR |= (GPIO12);
+		uint8_t d = (uint8_t)USART1_RDR;
+		esp_rx_byte(d);
 	}
-
-}
-
-void usart2_isr(void)
-{
-	if (((USART_ISR(USART2) & USART_ISR_RXNE) != 0))
+	else if (((USART_ISR(USART1) & USART_ISR_ORE) != 0))  //overrun, clear flag
 	{
-		uint8_t d = (uint8_t)USART2_RDR;
-		bt_buff_ptr_w++;
-		if (bt_buff_ptr_w >= BTBUFFLEN)
-			bt_buff_ptr_w = 0;
-		bt_buff[bt_buff_ptr_w] = d;
-	}
-	else if (((USART_ISR(USART2) & USART_ISR_ORE) != 0))  //overrun, clear flag
-	{
-		USART2_ICR = USART_ICR_ORECF;
+		USART1_ICR = USART_ICR_ORECF;
 	}
 }
-*/
+
 void sys_tick_handler(void)
 {
-
-
+	timeout_tick();
 }
 
+void exti4_15_isr(void)
+{
+	if (EXTI_PR & (GPIO8))  //rotary encoder irq
+	{
+		flag_rx = 1;
+
+		if ((EXTI_PR & (GPIO8)) != 0)
+			EXTI_PR |= (GPIO8);
+	}
+
+}
 
 void uart_send_blocking_len(uint8_t *buff, uint16_t len)
 {
 	uint16_t i = 0;
 	for (i = 0; i < len; i++)
 		usart_send_blocking(USART1,*buff++);
-
 }
-
-
-
 
 int main(void)
 {
 
+
 	init();
+	htu21_init();
 //	init_wdt();
-	/*
-	while(1)
-	{
-		if (USART1_ISR & (1<<5)){  //RXNE
-			r = USART1_RDR;
-			usart_send_blocking(USART2, r);
+
+	uint8_t buff[64];
+	char txbuff[128];
+	char respbuff[512];
+	flag_rx = 1;
+
+	gpio_set(LED_AUX_PORT,LED_AUX_PIN);
+	uint8_t count = 5;
+	while((count-- > 0) && (esp_connect_ap(WIFI_AP,WIFI_PASS) >0 ));
+	gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
+	gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
+
+	while(1){
+
+		uint8_t len,res;
+		int8_t rssi;
+		while(flag_rx == 0);
+		flag_rx = 0;
+		bool res_69 =  checkRx(buff, &len, &rssi);
+		uint16_t res_len = 0;
+
+		if (res_69 == true){
+			gpio_set(LED_868_PORT,LED_868_PIN);
+			uint8_t* p = buff;
+			uint8_t i = len;
+			while(i--)
+				usart_send_blocking(USART2, *p++);
+			usart_send_blocking(USART2, '\r');
+			usart_send_blocking(USART2, '\n');
+
+			i=add_node_to_packet((char*)buff,len,sizeof(buff)/sizeof(char));
+
+
+
+			construct_upload_string(txbuff, (char*)buff, rssi, sizeof(txbuff)/sizeof(char));
+			res = esp_upload_node("ukhas.net",txbuff,respbuff,sizeof(respbuff),&res_len);
+			if (res){
+				gpio_set(LED_AUX_PORT,LED_AUX_PIN);
+				gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
+
+				char* rb = respbuff;
+				while(res_len--)
+					usart_send_blocking(USART2, (uint8_t)(*rb++));
+
+				if (res != FAIL_NOT_200)
+					esp_connect_ap(WIFI_AP,WIFI_PASS); //try connecting again
+			}
+			else{
+				gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
+				gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
+
+				////print server response
+				//p=(uint8_t *)respbuff;
+				//while(res_len--)
+				//	usart_send_blocking(USART2, (uint8_t)(*p++));
+			}
+
 		}
-		if (USART2_ISR & (1<<5)){  //RXNE
-			r = USART2_RDR;
-			usart_send_blocking(USART1, r);
-		}
-		USART1_ICR = (1<<3);
-		USART2_ICR = (1<<3);
+		gpio_clear(LED_868_PORT,LED_868_PIN);
 	}
-*/
+
+
+{
+	_delay_ms(1000);
+	uint16_t hum = convert_humidity(htu21_read_sensor(HTU21_READ_HUMID));
+	hum++;
+
+	//rf69_send((uint8_t *)packet,sizeof(packet)-1,10);
+}
+_delay_ms(1000);
+	esp_reset();
+	gpio_set(LED_868_PORT,LED_868_PIN);
+	while(esp_connect_ap(WIFI_AP,WIFI_PASS)) ;
+	gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
+
+
+
+
 	uint8_t r;
 	while(1)
 	{
@@ -269,25 +293,6 @@ int main(void)
 		USART1_ICR = (1<<3);
 		USART2_ICR = (1<<3);
 	}
- 	while(1)
- 	{
-
- 		_delay_ms(1000);
- 		gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
-		gpio_set(LED_868_PORT,LED_868_PIN);
-		gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
-
-		_delay_ms(1000);
-		gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
-		gpio_clear(LED_868_PORT,LED_868_PIN);
-		gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
-
-		_delay_ms(1000);
-		gpio_set(LED_AUX_PORT,LED_AUX_PIN);
-		gpio_clear(LED_868_PORT,LED_868_PIN);
-		gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
-
- 	}
 }
 
 void _delay_ms(const uint32_t delay)
@@ -297,6 +302,42 @@ void _delay_ms(const uint32_t delay)
     for(i=0; i< delay; i++)
         for(j=0; j<1000; j++)
             __asm__("nop");
+}
+
+uint8_t construct_upload_string(char* outbuff, char* inbuff, int8_t rssi, uint8_t maxlen)
+{
+	return snprintf(outbuff,maxlen,"origin=%s&data=%s&rssi=%i",node_name,inbuff,rssi);
+}
+
+//retuns 0 for error, otherwise the new length
+uint8_t add_node_to_packet(char* inout, uint8_t len, uint8_t maxlen)
+{
+	while(len--)
+	{
+		if (inout[len] == ']'){
+			inout[len] = ',';
+			len++;
+			const char* p = &node_name[0];
+			while(*p){
+				if (len >= maxlen)
+					return 0;
+				inout[len] = *p;
+				len++;
+				p++;
+			}
+			if ((len+1) >= maxlen)
+				return 0;
+			inout[len++] = ']';
+			inout[len++] = '\0';
+
+			//decrement first number
+			if ((inout[0] > '0') && (inout[0] <= '9'))
+				inout[0]--;
+			return len;
+
+		}
+	}
+	return 0;
 }
 
 

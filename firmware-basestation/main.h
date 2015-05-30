@@ -6,3 +6,6 @@
 
 #define LED_AUX_PORT GPIOC
 #define LED_AUX_PIN GPIO13
+
+#define RADIO_INT_PORT GPIOB
+#define RADIO_INT_PIN GPIO8

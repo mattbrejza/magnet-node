@@ -12,7 +12,7 @@ volatile uint16_t humid,adco,volts;
 
 static const uint8_t shift = 6;
 static const uint16_t bitrate = 0x14;
-static const uint32_t frequency = 869550000;
+static const uint32_t frequency = 869537000;
 
 #define CRC_START 0x1D0F
 
@@ -88,7 +88,7 @@ int main(void) {
 		P1OUT |= 0x01;      //enable shutdown
 
 		//go to sleep for a while
-		CCR0 = 3500;  //increase to 28000 or so
+		CCR0 = 28000;//3500;  //increase to 28000 or so
 		TACTL = TASSEL_1 + MC_1;        // ACLK, up mode (to CCR0)
 		TAR = 0; 						//reset the timer
 		__bis_SR_register(LPM3_bits);
