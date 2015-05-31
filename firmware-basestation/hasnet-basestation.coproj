@@ -71,15 +71,16 @@
   </Target>
   <Components path="./"/>
   <Files>
-    <File name="main.h" path="main.h" type="1"/>
     <File name="RFM69Config.h" path="RFM69Config.h" type="1"/>
-    <File name="esp8266.c" path="../../nixie/firmware/esp8266.c" type="1"/>
+    <File name="main.h" path="main.h" type="1"/>
+    <File name="esp8266.c" path="esp8266.c" type="1"/>
+    <File name="wifipass.h" path="wifipass.h" type="1"/>
     <File name="RFM69.h" path="RFM69.h" type="1"/>
     <File name="htu21.h" path="htu21.h" type="1"/>
     <File name="syscalls.c" path="syscalls.c" type="1"/>
     <File name="RFM69.c" path="RFM69.c" type="1"/>
     <File name="main.c" path="main.c" type="1"/>
-    <File name="esp8266.h" path="../../nixie/firmware/esp8266.h" type="1"/>
     <File name="htu21.c" path="htu21.c" type="1"/>
+    <File name="esp8266.h" path="esp8266.h" type="1"/>
   </Files>
 </Project>

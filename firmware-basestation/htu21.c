@@ -235,27 +235,3 @@ void htu_read_reg_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t reg, uint8_t size,
 
 
 
-static void htu_write_i2c_start(uint32_t i2c, uint8_t i2c_addr, uint8_t size)
-{
-	while (i2c_busy(i2c) == 1);
-	while ((I2C_CR2(i2c) & I2C_CR2_START)); //(i2c_is_start(i2c) == 1);
-	/*Setting transfer properties*/
-	i2c_set_bytes_to_transfer(i2c, size);
-	i2c_set_7bit_address(i2c, (i2c_addr & 0x7F));
-	I2C_CR2(i2c) &= ~I2C_CR2_RD_WRN; //i2c_set_write_transfer_dir(i2c);
-	I2C_CR2(i2c) |= I2C_CR2_AUTOEND; //i2c_enable_autoend(i2c);
-	/*start transfer*/
-	I2C_CR2(i2c) |= I2C_CR2_START; //i2c_send_start(i2c);
-
-}
-static void htu_write_i2c_next_byte(uint32_t i2c, uint8_t byte)
-{
-	int wait = true;
-	while (wait) {
-		if (i2c_transmit_int_status(i2c)) {
-			wait = false;
-		}
-		while (i2c_nack(i2c));
-	}
-	I2C_TXDR(i2c) = byte; //i2c_send_data(i2c, data[i]);
-}

@@ -114,7 +114,7 @@ void init (void)
 
 	//systick
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
-	systick_set_reload(7999);
+	systick_set_reload(799999);
 	systick_interrupt_enable();
 	systick_counter_enable();
 
