@@ -221,6 +221,7 @@ void si4012_transmit_short(uint8_t *buff, uint8_t len)
 //	uint8_t r;
 
 	init_fifo();
+
 //	if (r != 0x80)
 //		return r;
 //
@@ -237,6 +238,7 @@ void si4012_transmit_short(uint8_t *buff, uint8_t len)
 	txbuff[0] = 0;   //packet size MSB
 	txbuff[1] = len;
 	txbuff[2] = 0;  //go into idle when done, immediate start
+//	txbuff[2] = 1;  //go into shutdown when done, immediate start
 	txbuff[3] = 0;
 	txbuff[4] = 0;
 
@@ -245,10 +247,11 @@ void si4012_transmit_short(uint8_t *buff, uint8_t len)
 //		return r;
 
 	uint8_t k = 0;
-	volatile unsigned int i;
+//	volatile unsigned int i;
+
 	while((k & 0x08) == 0){
 		//for (i = 0; i < 5000; i++);
-		__bis_SR_register(LPM0_bits);
+//		__bis_SR_register(LPM0_bits);
 		get_int_status(&k);
 	}
 

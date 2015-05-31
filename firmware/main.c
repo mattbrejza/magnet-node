@@ -26,7 +26,7 @@ uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.
 int main(void) {
     WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog timer
 	
-    ADC10CTL0 = ADC10SHT_2 + ADC10ON + SREF0 + REF2_5V + REFON;// + ADC10IE; // ADC10ON, interrupt enabled
+    ADC10CTL0 = ADC10SHT_2 + ADC10ON + SREF0 + REF2_5V + REFON;
     ADC10CTL1 = INCH_11;                       // input vcc/2
 //    ADC10AE0 |= 0x02;                         // PA.1 ADC option select
 //    P1DIR |= 0x01;                            // Set P1.0 to output direction
@@ -51,19 +51,24 @@ int main(void) {
     	WDTCTL = WDT_ARST_1000;
 
     	//timer for delays
-    	CCR0 = 10000;
-    	TACTL = TASSEL_2 + MC_1;                  // SMCLK, up mode (to CCR0)
+//    	CCR0 = 10000;
+//    	TACTL = TASSEL_2 + MC_1;                  // SMCLK, up mode (to CCR0)
 
-    	ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
+    	ADC10CTL0 |= (REFON | ADC10ON);			//adc buffer takes ~30us to settle, so enable in advance
 
-    	P1OUT &= ~0x01;      //disable shutdown on radio
 
+    	P1OUT &= ~0x01;      //disable shutdown on radio (is disabled on tx finished)
     	tem = htu21_read_sensor(HTU21_READ_TEMP);
+    	ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     	temp = convert_temperature(tem);
     	hum = htu21_read_sensor(HTU21_READ_HUMID);
 		humid = convert_humidity(hum);
-		while(ADC10CTL1 & ADC10BUSY);
+		//while(v & ADC10BUSY);     //should really check, but the humidity takes 14ms so the adc will be done
 		adco = ADC10MEM;
+
+		//turn adc off
+		ADC10CTL0 &= ~ENC;
+		ADC10CTL0 &= ~(REFON | ADC10ON);
 
 		volts = adco * 25;
 		volts >>= 1;
