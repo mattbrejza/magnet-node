@@ -16,8 +16,8 @@ void i2c_set_7bit_address(uint32_t i2c, uint8_t addr);
 uint8_t i2c_transmit_int_status(uint32_t i2c);
 uint8_t i2c_nack(uint32_t i2c);
 uint8_t i2c_get_data(uint32_t i2c);
-void htu_write_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data);
-void htu_read_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data);
+uint8_t htu_write_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data);
+uint8_t htu_read_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data);
 void htu_read_reg_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t reg, uint8_t size,uint8_t *data);
 static void htu_write_i2c_start(uint32_t i2c, uint8_t i2c_addr, uint8_t size);
 static void htu_write_i2c_next_byte(uint32_t i2c, uint8_t byte);
@@ -49,28 +49,13 @@ uint16_t htu21_read_sensor(uint8_t sensor)
 
 	uint8_t in_buff[3];
 	uint16_t out = 0;
+
 	htu_write_i2c(H_I2C, HTU21_ADDR, 1, &sensor);
-	htu_read_i2c(H_I2C, HTU21_ADDR | 1, 3, in_buff);
+
+	while(htu_read_i2c(H_I2C, HTU21_ADDR | 1, 3, in_buff));   //wait for no nack
 	out = (in_buff[0] << 8) | in_buff[1];
 	return out;
 
-	/*
-	uint16_t out = 0;
-//	uint8_t chk = 0;
-
-	i2c_start();
-	i2c_write8(HTU21_ADDR);
-	i2c_write8(sensor);
-	i2c_stop();
-	i2c_start();
-	i2c_write8(HTU21_ADDR | 1);
-	out  = i2c_read8(0x00) << 8;  //MSB
-	out |= i2c_read8(0xff);  //LSB
-//	chk = i2c_read8(0xFF);        //checksum
-	i2c_stop();
-
-	return out;
-*/
 }
 
 //output in Cx100
@@ -147,7 +132,8 @@ uint8_t i2c_received_data(uint32_t i2c)
 }
 
 //from libopencm3
-void htu_write_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data)
+//returns 0 for success, otherwise 1 for error
+uint8_t htu_write_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data)
 {
 	int wait;
 	int i;
@@ -169,12 +155,18 @@ void htu_write_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data)
 				wait = false;
 			}
 			while (i2c_nack(i2c));
+			//if (i2c_nack(i2c)){
+			///	I2C_ICR(i2c) |= I2C_ICR_NACKCF;
+			//	return 1;
+			//}
 		}
 		I2C_TXDR(i2c) = data[i]; //i2c_send_data(i2c, data[i]);
 	}
+	return 0;
 }
 
-void htu_read_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data)
+//returns 0 for success, otherwise 1 for error
+uint8_t htu_read_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data)
 {
 	int wait;
 	int i;
@@ -189,9 +181,16 @@ void htu_read_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t size, uint8_t *data)
 	I2C_CR2(i2c) |= I2C_CR2_START; //i2c_send_start(i2c);
 
 	for (i = 0; i < size; i++) {
-		while (i2c_received_data(i2c) == 0);
+		while (i2c_received_data(i2c) == 0)
+		{
+			if (i2c_nack(i2c)){
+				I2C_ICR(i2c) |= I2C_ICR_NACKCF;
+				return 1;
+			}
+		}
 		data[i] = i2c_get_data(i2c);
 	}
+	return 0;
  }
 
 void htu_read_reg_i2c(uint32_t i2c, uint8_t i2c_addr, uint8_t reg, uint8_t size,

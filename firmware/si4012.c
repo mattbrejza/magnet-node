@@ -138,8 +138,8 @@ static uint8_t get_state(uint8_t *buff_out)
 void si4012_init(uint8_t shift, uint16_t bitrate, uint32_t frequency)
 {
 
-	P1DIR |= 0x01;		//shutdown pin as output
-	P1OUT |= 0x01;      //enable shutdown
+
+//	P1OUT |= 0x01;      //enable shutdown
 
 	i2c_init();
 

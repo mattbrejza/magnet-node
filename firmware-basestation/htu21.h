@@ -9,8 +9,10 @@
 #define HTU21_H_
 
 #define HTU21_ADDR (0x80>>0)
-#define HTU21_READ_TEMP 0xE3
-#define HTU21_READ_HUMID 0xE5
+#define HTU21_READ_TEMP 0xF3
+#define HTU21_READ_HUMID 0xF5
+//#define HTU21_READ_TEMP 0xE3
+//#define HTU21_READ_HUMID 0xE5
 
 #define H_I2C_RCC RCC_I2C2
 #define H_I2C I2C2

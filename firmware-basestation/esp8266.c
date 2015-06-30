@@ -36,7 +36,11 @@ uint16_t response_maxlen = 0;
 uint16_t response_ptr = 0;
 
 //timeout
-uint8_t timeout = 0;
+volatile uint8_t timeout = 0;
+
+//echo flag
+void (*echoptr)(char);
+uint8_t enable_echo = 0;
 
 
 void esp_init(void)
@@ -69,6 +73,16 @@ uint8_t esp_reset(void)
 	return 0;
 }
 
+uint8_t esp_disconnect_ap(void)
+{
+	clear_buffer();
+	pending_command = 1;  //waiting for OK
+	timeout = 10;
+	uart_send_blocking_string("AT+CWQAP\n");
+	while((pending_command&0x7F)  && (timeout)) process_esp_buffer();
+	return pending_command;
+}
+
 uint8_t esp_connect_ap(char* ap_name, char* ap_password)
 {
 	clear_buffer();
@@ -97,6 +111,25 @@ uint8_t esp_connect_ap(char* ap_name, char* ap_password)
 
 }
 
+uint8_t esp_conn_close(void)
+{
+	pending_command = 1;
+	uart_send_blocking_string("AT+CIPCLOSE\n");
+	return 0;
+}
+
+void esp_run_echo(char* command, void (*print_char)(char))
+{
+	echoptr = print_char;
+	enable_echo = 1;
+	pending_command = 1;
+	uart_send_blocking_string(command);
+	while((pending_command&0x7F) )
+		process_esp_buffer();
+	enable_echo = 0;
+
+}
+
 uint8_t esp_upload_node(char* dest_ip, char* string, char* respbuff, uint16_t resp_maxlen, uint16_t* resp_len)
 {
 	//initialse stuff for server response
@@ -112,8 +145,10 @@ uint8_t esp_upload_node(char* dest_ip, char* string, char* respbuff, uint16_t re
 	uart_send_blocking_string(dest_ip);
 	uart_send_blocking_string("\",80\n");
 	while((pending_command&0x7F) && (timeout) ) process_esp_buffer();
-	if ((pending_command > 1) || (timeout == 0)) //failure
+	if ((pending_command > 1) || (timeout == 0)){ //failure
+		esp_conn_close();
 		return pending_command;
+	}
 
 	char buff1[6];
 	char buff2[6];
@@ -127,8 +162,10 @@ uint8_t esp_upload_node(char* dest_ip, char* string, char* respbuff, uint16_t re
 	uart_send_blocking_string(buff2);
 	uart_send_blocking_string("\r\n");
 	while((pending_command&0x7F) && (timeout) ) process_esp_buffer();
-	if ((pending_command > 1) || (timeout == 0)) //failure
+	if ((pending_command > 1) || (timeout == 0)){ //failure
+		esp_conn_close();
 		return pending_command;
+	}
 
 	pending_command = 5;  //waiting for unlink
 	response_buffer = respbuff;
@@ -144,12 +181,14 @@ uint8_t esp_upload_node(char* dest_ip, char* string, char* respbuff, uint16_t re
 	while((pending_command&0x7F) && (timeout) ) process_esp_buffer();
 	if ((pending_command > 1)  || (timeout == 0)){ //failure
 		response_buffer = 0;
+		esp_conn_close();
 		return pending_command;
 	}
 
 	if (look_for_200() == 0){
 		*resp_len = response_ptr;
 		response_buffer = 0;
+		esp_conn_close();
 		return FAIL_NOT_200;
 	}
 
@@ -157,7 +196,7 @@ uint8_t esp_upload_node(char* dest_ip, char* string, char* respbuff, uint16_t re
 	response_buffer = 0;
 
 
-
+	esp_conn_close();
 	return 0;
 
 }
@@ -322,6 +361,10 @@ void esp_rx_byte(uint8_t d)
 				response_buffer[response_ptr++] = d;
 			}
 		}
+	}
+
+	if (enable_echo){
+		echoptr((char)d);
 	}
 
 }

@@ -4,6 +4,13 @@
 #include "si4012.h"
 #include "htu21.h"
 
+//                      PRE   PRE   PRE  SYNC  SYNC  LEN
+uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','H','h','h','[','M','B','1',']',0,0};
+
+#define USE_HTU21
+
+const int16_t temp_internal_cal = 695;
+
 
 uint8_t sequence = 'a';
 
@@ -12,22 +19,25 @@ volatile uint16_t humid,adco,volts;
 
 static const uint8_t shift = 6;
 static const uint16_t bitrate = 0x14;
-static const uint32_t frequency = 869537000;
+static const uint32_t frequency = 869537000;  //37000 for MB1,  27000 for MB2
 
 #define CRC_START 0x1D0F
 
 uint16_t crc_xmodem_update (uint16_t crc, uint8_t data);
 void format_hasnet_string(uint8_t *buff, uint8_t humidity, uint8_t volts10, int16_t temp10);
 
-//                      PRE   PRE   PRE  SYNC  SYNC  LEN
-uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','H','h','h','[','M','B','1',']',0,0};
 
 
 int main(void) {
-    WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog timer
-	
-    ADC10CTL0 = ADC10SHT_2 + ADC10ON + SREF0 + REF2_5V + REFON;
-    ADC10CTL1 = INCH_11;                       // input vcc/2
+//    WDTCTL = WDTPW | WDTHOLD;	// Stop watchdog timer
+#ifdef USE_HTU21
+	ADC10CTL0 = ADC10SHT_2 + ADC10ON + SREF_1 + REFON + REF2_5V;
+	P1DIR |= 0x01;// | (1<<4);		//shutdown, sensor power pin as output
+#else
+    ADC10CTL0 = ADC10SHT_2 + ADC10ON + SREF_1 + REFON;// + REF2_5V;
+    P1DIR |= 0x01 | (1<<4);		//shutdown, sensor power pin as output
+#endif
+
 //    ADC10AE0 |= 0x02;                         // PA.1 ADC option select
 //    P1DIR |= 0x01;                            // Set P1.0 to output direction
 
@@ -39,6 +49,7 @@ int main(void) {
 	//setup clocks
 	BCSCTL1 = (1<<7) | DIVA_3 | 3;  //RSEL = 3 (250kHz), ACLK = 12/8 = 1.5kHz
 	BCSCTL3 = LFXT1S_2;
+
 
 	si4012_init(shift, bitrate, frequency);
 
@@ -54,26 +65,61 @@ int main(void) {
 //    	CCR0 = 10000;
 //    	TACTL = TASSEL_2 + MC_1;                  // SMCLK, up mode (to CCR0)
 
+    	ADC10CTL1 = INCH_11;                       // input vcc/2
     	ADC10CTL0 |= (REFON | ADC10ON);			//adc buffer takes ~30us to settle, so enable in advance
 
 
     	P1OUT &= ~0x01;      //disable shutdown on radio (is disabled on tx finished)
+
+#ifdef USE_HTU21
     	tem = htu21_read_sensor(HTU21_READ_TEMP);
+#endif
     	ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
+#ifdef USE_HTU21
     	temp = convert_temperature(tem);
     	hum = htu21_read_sensor(HTU21_READ_HUMID);
 		humid = convert_humidity(hum);
 		//while(v & ADC10BUSY);     //should really check, but the humidity takes 14ms so the adc will be done
 		adco = ADC10MEM;
+		volts = adco * 25;
+		temp = temp / 10;
+#else
+		//INSERT 30us setting time wait here
+
+		P1OUT |= (1<<4);    //enable power to sensors
+		ADC10AE0 = (1<<3);
+
+		while(ADC10CTL1 & ADC10BUSY);
+		adco = ADC10MEM;
+		volts = adco * 15;
+
+		ADC10CTL0 &= ~ENC;
+		ADC10CTL1 = INCH_10;                    //temperature sensor.
+		ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
+		while(ADC10CTL1 & ADC10BUSY);
+		temp = ADC10MEM;
+		temp = temp - temp_internal_cal;
+		temp = temp * 33;
+		temp = temp >> 3;
+
+		ADC10CTL0 &= ~ENC;
+		ADC10CTL1 = INCH_3;                    //temperature sensor.
+		ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
+		while(ADC10CTL1 & ADC10BUSY);
+		humid = ADC10MEM;
+		humid = humid / 15;
+#endif
+
+
 
 		//turn adc off
 		ADC10CTL0 &= ~ENC;
 		ADC10CTL0 &= ~(REFON | ADC10ON);
 
-		volts = adco * 25;
+
 		volts >>= 1;
 		volts >>= 8;
-		temp = temp / 10;
+
 
 		format_hasnet_string(&buf_out[6],humid,volts,temp);
 
@@ -91,16 +137,19 @@ int main(void) {
 		si4012_transmit_short(buf_out, sizeof(buf_out));
 
 		P1OUT |= 0x01;      //enable shutdown
+#ifndef USE_HTU21
+		P1OUT &= ~(1<<4);
+#endif
 
 		//go to sleep for a while
-		CCR0 = 28000;//3500;  //increase to 28000 or so
+		CCR0 = 29000;  //increase to 28000 or so
 		TACTL = TASSEL_1 + MC_1;        // ACLK, up mode (to CCR0)
 		TAR = 0; 						//reset the timer
 		__bis_SR_register(LPM3_bits);
-		//WDTCTL = WDT_ARST_1000;
-		//__bis_SR_register(LPM3_bits);
-		//WDTCTL = WDT_ARST_1000;
-		//__bis_SR_register(LPM3_bits);
+		WDTCTL = WDT_ARST_1000;
+		__bis_SR_register(LPM3_bits);
+		WDTCTL = WDT_ARST_1000;
+		__bis_SR_register(LPM3_bits);
 
      }
 
