@@ -212,15 +212,18 @@ void format_hasnet_string(uint8_t *buff, uint8_t humidity, uint8_t volts10, int1
 	buff[14] = h+48;
 
 	//temperature
-	int8_t t = temp10/10;
-	if (temp10 < 0)
+
+	if (temp10 < 0){
 		buff[7] = '-';
+		temp10 = temp10*-1;
+	}
 	else
 		buff[7] = '0';
-	if ((t<10) && (t > -10))
+	int8_t t = temp10/10;
+	if ((t<10))// && (t > -10))
 		buff[8] = '0';
 	else{
-		uint8_t t10 = abs(t)/10;
+		uint8_t t10 = t/10;//abs(t)/10;
 		buff[8] = t10+48;
 	}
 	t = abs(t)%10;
