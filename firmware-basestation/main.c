@@ -290,6 +290,8 @@ static void process_user_buffer(void)
 				user_send_non_blocking_str("Failed\r\n>");
 			else
 				user_send_non_blocking_str("Success\r\n>");
+			flash_unlock();
+			erase_settings_page();
 			write_settings_flash(node_name, strlen(node_name), ssid, len1, pwd, len2);
 			ssid_valid = 1;
 		}
@@ -433,8 +435,11 @@ int main(void)
 		ssid[ssid_len] = 0;
 		pwd[pwd_len] = 0;
 	}
-	else
+	else{
 		ssid_valid = 0;
+		ssid[0] = 0;
+		pwd[0] = 0;
+	}
 
 
 	uint8_t buff[64];
@@ -445,7 +450,7 @@ int main(void)
 	char seq = 'a';
 
 	gpio_set(LED_AUX_PORT,LED_AUX_PIN);
-	uint8_t res = esp_connect_ap(WIFI_AP,WIFI_PASS);
+	uint8_t res = esp_connect_ap(ssid,pwd);//(WIFI_AP,WIFI_PASS);
 	if (res){
 		user_send_non_blocking_str("Failed to connect to ");
 		user_send_non_blocking_str(ssid);
@@ -519,7 +524,7 @@ int main(void)
 _delay_ms(1000);
 	esp_reset();
 	gpio_set(LED_868_PORT,LED_868_PIN);
-	while(esp_connect_ap(WIFI_AP,WIFI_PASS)) ;
+	while(esp_connect_ap(ssid,pwd)) ;
 	gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
 
 
@@ -586,7 +591,7 @@ void upload_string(char* string, char* response, uint16_t response_len, int8_t r
 			usart_send_blocking(USART2, (uint8_t)(*rb++));
 
 		if (res != FAIL_NOT_200)
-			esp_connect_ap(WIFI_AP,WIFI_PASS); //try connecting again
+			esp_connect_ap(ssid,pwd);//WIFI_AP,WIFI_PASS); //try connecting again
 	}
 	else{
 		gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
@@ -694,7 +699,7 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, char* ssi
 	*name_len = lengths2 & 0xFF;
 	*ssid_len = (lengths1 >> 0) & 0xFF;
 	*pwd_len = (lengths1 >> 8) & 0xFF;
-	if (((lengths1 >> 8) & 0xFF) == 0x6A )
+	if (((lengths1 >> 16) & 0xFF) == 0x6A )
 		return_val |= (1<<1);
 	if (((lengths2 >> 8) & 0xFF) == 0x74 )
 		return_val |= (1<<0);
