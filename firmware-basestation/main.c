@@ -219,7 +219,8 @@ void usart2_isr(void)
 	if (((USART_ISR(USART2) & USART_ISR_RXNE) != 0))
 	{
 		uint8_t d = (uint8_t)USART2_RDR;
-		user_send_non_blocking_char(d);  //echo
+		if (((d == 127) && (user_input_ptr > 0)) || (d != 127))
+			user_send_non_blocking_char(d);  //echo
 		if ((d == 127) && (user_input_ptr > 0))
 			user_input_ptr--;
 		if ((d != 10) && (d != 13) && (d != 127))
@@ -568,10 +569,17 @@ void upload_string(char* string, char* response, uint16_t response_len, int8_t r
 	uint16_t res_len = 0;
 	uint8_t i = strlen(string);
 	char txbuff[128];
+
+	//handle uart ui stuff
+	user_send_non_blocking_char(27);
+	user_send_non_blocking_str("[2K\r");
 	while(i--)
 		user_send_non_blocking_char(*p++);
-	user_send_non_blocking_char('\r');
-	user_send_non_blocking_char('\n');
+	user_send_non_blocking_str("\r\n>");
+	i = user_input_ptr;
+	p = user_input_buff;
+	while(i--)
+			user_send_non_blocking_char(*p++);
 
 	if (rssi < 0)
 		i = snprintf(txbuff,128,"origin=%s&data=%s&rssi=%i",node_name,string,rssi);
