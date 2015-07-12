@@ -42,6 +42,15 @@ volatile uint8_t timeout = 0;
 void (*echoptr)(char);
 uint8_t enable_echo = 0;
 
+//stuff for the non blocking upload
+static uint8_t upload_string_state = 0;
+static char* upload_dest_ip_nb;
+static char* upload_string_nb;
+static char* upload_respbuff_nb;
+static uint16_t upload_resp_maxlen_nb;
+static uint16_t* upload_resp_len_nb;
+
+
 
 void esp_init(void)
 {
@@ -64,10 +73,18 @@ void esp_init(void)
 
 uint8_t esp_reset(void)
 {
+	timeout = 2;
+	gpio_clear(GPIOF,GPIO1); //RST low
+	while(timeout);
+	gpio_set(GPIOF,GPIO1); //RST high
+	timeout = 10;
+	while(timeout);
+
 	clear_buffer();
 	pending_command = 2;  //waiting for ready
+	timeout = 30;
 	uart_send_blocking_string("AT+RST\r\n");
-	while(pending_command&0x7F) process_esp_buffer();
+	while((pending_command&0x7F) && (timeout)) process_esp_buffer();
 	if (pending_command > 1) //failure
 		return pending_command;
 	return 0;
@@ -195,10 +212,94 @@ static uint8_t upload_step4(uint16_t* resp_len)//char* dest_ip, char* string, ch
 	return 0;
 }
 
-uint8_t esp_upload_node_non_blocking_start(char* dest_ip, char* string, char* respbuff, uint16_t resp_maxlen, uint16_t* resp_len)
+//returns 0 if still uploading, ESP_UPLOAD_DONE_OK if done ok, otherwise error messages are >0xF0
+uint8_t esp_service_upload_task(void)
 {
+	uint8_t res = 0;
+
+	process_esp_buffer();
+	if ((pending_command&0x7F) && (timeout) )  //CHANGE THIS
+		return 0;
+
+	//check for errors
+	if ((pending_command > 1) || (timeout == 0)){ //failure
+		response_buffer = 0;
+		esp_conn_close();
+		res = pending_command;    //set error flag
+	}
+	if ((res > 0) && (res < 0xF0))
+		res =  FAIL_TIMEOUT;
+
+
+
+	switch (upload_string_state){
+
+		case 1:  //just finished step 1
+			if (res>0){
+				upload_string_state = 0;
+				return res;
+			}
+			upload_step2_nb(upload_dest_ip_nb, upload_string_nb, upload_respbuff_nb, upload_resp_maxlen_nb);
+			upload_string_state = 2;
+
+			break;
+
+		case 2:
+			if (res>0){
+				upload_string_state = 0;
+				return res;
+			}
+			upload_step3_nb(upload_dest_ip_nb, upload_string_nb, upload_respbuff_nb, upload_resp_maxlen_nb);
+			upload_string_state = 3;
+			break;
+
+		case 3:
+			if (res>0){
+				upload_string_state = 0;
+				return res;
+			}
+			upload_string_state = 0;
+
+			res = upload_step4(upload_resp_len_nb);
+			if (res>0)
+				return res;
+
+			return ESP_UPLOAD_DONE_OK;
+
+		default:
+			upload_string_state = 0;
+			return FAIL_GEN;
+			break;
+
+	}
+
+	return 0;
+}
+
+uint8_t esp_busy(void)
+{
+	if (upload_string_state > 0)
+		return 1;
+	else
+		return 0;
 
 }
+
+void esp_upload_node_non_blocking_start(char* dest_ip, char* string, char* respbuff, uint16_t resp_maxlen, uint16_t* resp_len)
+{
+	//copy stuff for use later
+	upload_dest_ip_nb = dest_ip;
+	upload_string_nb = string;
+	upload_respbuff_nb = respbuff;
+	upload_resp_maxlen_nb = resp_maxlen;
+	upload_resp_len_nb = resp_len;
+
+	*resp_len = 0;
+	upload_step1_nb(dest_ip, string, respbuff, resp_maxlen);
+	upload_string_state = 1;
+
+}
+
 
 static uint8_t esp_upload_wait_response(void)
 {
@@ -217,8 +318,11 @@ uint8_t esp_upload_node(char* dest_ip, char* string, char* respbuff, uint16_t re
 	uint8_t res = 0;
 	upload_step1_nb(dest_ip, string, respbuff, resp_maxlen);
 	res = esp_upload_wait_response();
-	if (res>0)
+	if (res>0){
+		if (res == FAIL_STILL_CONN)
+			esp_conn_close();
 		return res;
+	}
 
 	upload_step2_nb(dest_ip, string, respbuff, resp_maxlen);
 	res = esp_upload_wait_response();
@@ -312,6 +416,10 @@ void esp_process_line_rx(char *buffin, uint16_t line_start, uint16_t line_end, u
 			if (strncmp_circ(buffin, "FAIL", line_start+text_start, buff_len, 4))
 				pending_command = FAIL_GEN;
 		}
+		if (count == 12){
+			if (strncmp_circ(buffin, "busy inet...", line_start+text_start, buff_len, 12))
+				pending_command = FAIL_FATAL;
+		}
 		if (count == 5){
 			if (strncmp_circ(buffin, "Error", line_start+text_start, buff_len, 5))
 				pending_command = FAIL_GEN;
@@ -326,7 +434,7 @@ void esp_process_line_rx(char *buffin, uint16_t line_start, uint16_t line_end, u
 		if (count == 14){
 			if (strncmp_circ(buffin, "ALREAY CONNECT", line_start+text_start, buff_len, 14)){
 				if (pending_command == 4)
-					pending_command = 0;
+					pending_command = FAIL_FATAL; //0;   //made this an error condition as it should be disconnected before trying to connect again
 			}
 		}
 
