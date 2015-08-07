@@ -432,7 +432,7 @@ int main(void)
 {
 	init();
 	htu21_init();
-//	init_wdt();
+	init_wdt();
 
 	uint8_t name_len, ssid_len, pwd_len;
 	ssid_valid = read_settings_flash(node_name, &name_len, ssid, &ssid_len, pwd, &pwd_len);
@@ -486,6 +486,8 @@ int main(void)
 
 		uint8_t len;
 		int8_t rssi;
+
+		IWDG_KR = 0xAAAA;
 
 		gpio_clear(LED_868_PORT,LED_868_PIN);
 
@@ -562,6 +564,7 @@ int main(void)
 			uint8_t r;
 			while(1)
 			{
+				IWDG_KR = 0xAAAA;
 				if (USART1_ISR & (1<<5)){  //RXNE
 					r = USART1_RDR;
 					usart_send_blocking(USART2, r);
@@ -769,6 +772,12 @@ uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_
 static uint8_t upload_string_handle_response(uint8_t res, char* response)
 {
 	if (res){
+		char errcode[3];
+		snprintf(errcode,3,"%02x",res);
+		user_send_non_blocking_str("\r\n\r\nUpload failed with error code 0x");
+		user_send_non_blocking_str(errcode);
+		user_send_non_blocking_str("\r\n\r\n>");
+
 		error_count++;
 		gpio_set(LED_AUX_PORT,LED_AUX_PIN);
 		gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);

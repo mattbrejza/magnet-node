@@ -5,11 +5,11 @@
 #include "htu21.h"
 
 //                      PRE   PRE   PRE  SYNC  SYNC  LEN
-uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','H','h','h','[','M','B','1',']',0,0};
+uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','H','h','h','[','M','B','9',']',0,0};
 
-#define USE_HTU21
+//#define USE_HTU21
 
-const int16_t temp_internal_cal = 695;
+const int16_t temp_internal_cal = 690;//695;
 
 
 uint8_t sequence = 'a';
@@ -19,7 +19,7 @@ volatile uint16_t humid,adco,volts;
 
 static const uint8_t shift = 6;
 static const uint16_t bitrate = 0x14;
-static const uint32_t frequency = 869537000;  //37000 for MB1,  27000 for MB2
+static const uint32_t frequency = 869537000-3000;  //37000 for MB1,  27000 for MB2
 
 #define CRC_START 0x1D0F
 

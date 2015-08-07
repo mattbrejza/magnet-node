@@ -73,10 +73,12 @@ void esp_init(void)
 
 uint8_t esp_reset(void)
 {
-	timeout = 2;
+	timeout = 20;
 	gpio_clear(GPIOF,GPIO1); //RST low
+	gpio_set(GPIOF,GPIO0); //CH_PD low
 	while(timeout);
 	gpio_set(GPIOF,GPIO1); //RST high
+	gpio_set(GPIOF,GPIO0); //CH_PD high
 	timeout = 10;
 	while(timeout);
 
@@ -218,7 +220,7 @@ uint8_t esp_service_upload_task(void)
 	uint8_t res = 0;
 
 	process_esp_buffer();
-	if ((pending_command&0x7F) && (timeout) )  //CHANGE THIS
+	if ((pending_command>0) && (pending_command < 0xF0) && (timeout) )  //CHANGE THIS
 		return 0;
 
 	//check for errors
@@ -437,7 +439,11 @@ void esp_process_line_rx(char *buffin, uint16_t line_start, uint16_t line_end, u
 					pending_command = FAIL_FATAL; //0;   //made this an error condition as it should be disconnected before trying to connect again
 			}
 		}
-
+		if (count == 9){
+			if (strncmp_circ(buffin, "busy p...", line_start+text_start, buff_len, 9)){
+				pending_command = FAIL_FATAL;
+			}
+		}
 
 		ptr++;
 		if (ptr == buff_len)
