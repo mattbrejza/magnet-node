@@ -72,7 +72,7 @@ static uint16_t telem_ptr_r = 0;
 char txbuff[128];
 static uint16_t server_response_length = 0;
 
-static char node_name_default[] = "MB30";
+static char node_name_default[] = "JD0";
 char node_name[33] = {0};
 
 volatile uint16_t telem_count = 50;
