@@ -1,0 +1,3 @@
+[submodule "firmware-basestation/libopencm32"]
+	path = firmware-basestation/libopencm32
+	url = git@github.com:kuldeepdhaka/libopencm3.git
