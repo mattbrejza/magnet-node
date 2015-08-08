@@ -1,3 +1,0 @@
-[submodule "firmware-basestation/libopencm3"]
-	path = firmware-basestation/libopencm3
-	url = git@github.com:libopencm3/libopencm3.git
