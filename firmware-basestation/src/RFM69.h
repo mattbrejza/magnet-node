@@ -790,7 +790,7 @@ void rf69_spiFifoWrite(const uint8_t* src, uint8_t len);
 void rf69_setMode(const uint8_t newMode);
 void rf69_send(const uint8_t* data, uint8_t len, uint8_t power);
 bool checkRx(uint8_t* rcv, uint8_t* len, int8_t* rssi);
-void clearFifo(void);
+void rf69_clearFifo(void);
 int8_t rf69_readTemp(void);
 int16_t rf69_sampleRssi(void);
 

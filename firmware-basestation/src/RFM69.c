@@ -213,12 +213,6 @@ void rf69_setMode(const uint8_t newMode)
     _mode = newMode;
 }
 
-void clearFifo(void)
-{
-	rf69_setMode(RFM69_MODE_STDBY);
-	rf69_setMode(RFM69_MODE_RX);
-}
-
 bool checkRx(uint8_t* rcv, uint8_t* len, int8_t* rssi)
 {
     // Check IRQ register for payloadready flag (indicates RXed packet waiting in FIFO)
@@ -230,7 +224,7 @@ bool checkRx(uint8_t* rcv, uint8_t* len, int8_t* rssi)
         // Read RSSI register (should be of the packet? - TEST THIS)
         *rssi = -(rf69_spiRead(RFM69_REG_24_RSSI_VALUE)/2);
         // Clear the radio FIFO (found in HopeRF demo code)
-        clearFifo();
+        rf69_clearFifo();
         return true;
     }
     

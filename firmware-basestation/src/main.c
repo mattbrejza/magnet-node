@@ -28,6 +28,7 @@
 
 uint8_t flag_rx = 0;
 
+void init_wdt(void);
 void init(void);
 void _delay_ms(const uint32_t delay);
 void uart_send_blocking_len(uint8_t *buff, uint16_t len);
@@ -59,7 +60,7 @@ static char ssid[33] = {};   //one longer than needed for '\0' terminator
 static char pwd[65] = {};
 uint8_t ssid_valid = 0;
 
-int8_t last_error = 0; //used for encoding error messages into telemetry
+static int8_t last_error = 0; //used for encoding error messages to telemetry
 
 static uint8_t debug_mode = 0;
 
@@ -69,11 +70,11 @@ static char telem_buff[512];
 static uint16_t telem_ptr_w = 0;
 static uint16_t telem_ptr_r = 0;
 
-char txbuff[128];
+static char txbuff[128];
 static uint16_t server_response_length = 0;
 
 static char node_name_default[] = "JD0";
-char node_name[33] = {0};
+static char node_name[33] = {0};
 
 volatile uint16_t telem_count = 50;
 

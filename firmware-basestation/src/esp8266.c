@@ -506,7 +506,8 @@ void esp_rx_byte(uint8_t d)
 	}
 
 	if ((pending_command == 6) || (pending_command == 5)){
-		if (response_buffer > 0){
+		if (response_buffer != NULL)
+        {
 			if (response_ptr < response_maxlen){
 				response_buffer[response_ptr++] = d;
 			}
@@ -569,31 +570,32 @@ static uint8_t check_esp_buffer(void)
 	return 0;
 }
 
-void reverse(s) char *s; {
-char *j;
-int c;
+void reverse(char *s)
+{
+    char *j;
+    int c;
 
-  j = s + strlen(s) - 1;
-  while(s < j) {
-    c = *s;
-    *s++ = *j;
-    *j-- = c;
-  }
+    j = s + strlen(s) - 1;
+    while(s < j) {
+        c = *s;
+        *s++ = *j;
+        *j-- = c;
+    }
 }
 
 /* itoa:  convert n to characters in s */
- void itoa(int n, char s[])
- {
-     int i, sign;
+void itoa(int n, char s[])
+{
+    int i, sign;
 
-     if ((sign = n) < 0)  /* record sign */
-         n = -n;          /* make n positive */
-     i = 0;
-     do {       /* generate digits in reverse order */
-         s[i++] = n % 10 + '0';   /* get next digit */
-     } while ((n /= 10) > 0);     /* delete it */
-     if (sign < 0)
-         s[i++] = '-';
-     s[i] = '\0';
-     reverse(s);
- }
+    if ((sign = n) < 0)  /* record sign */
+        n = -n;          /* make n positive */
+    i = 0;
+    do {       /* generate digits in reverse order */
+        s[i++] = n % 10 + '0';   /* get next digit */
+    } while ((n /= 10) > 0);     /* delete it */
+    if (sign < 0)
+        s[i++] = '-';
+    s[i] = '\0';
+    reverse(s);
+}
