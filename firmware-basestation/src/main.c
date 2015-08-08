@@ -58,7 +58,7 @@ static uint8_t upload_string_handle_response(uint8_t res, char* response);
 
 static char ssid[33] = {};   //one longer than needed for '\0' terminator
 static char pwd[65] = {};
-uint8_t ssid_valid = 0;
+static uint8_t ssid_valid = 0;
 
 static int8_t last_error = 0; //used for encoding error messages to telemetry
 
@@ -114,34 +114,6 @@ void init_wdt(void)
     IWDG_KR = 0xCCCC;
 }
 
-/*
-void usart1_isr(void)
-{
-	if (((USART_ISR(USART1) & USART_ISR_RXNE) != 0))
-	{
-		buff = (uint8_t)USART1_RDR;
-		usart_send_blocking(USART2, buff);
-	}
-	else if (((USART_ISR(USART1) & USART_ISR_ORE) != 0))  //overrun, clear flag
-	{
-		USART1_ICR = USART_ICR_ORECF;
-	}
-}
-
-void usart2_isr(void)
-{
-	if (((USART_ISR(USART2) & USART_ISR_RXNE) != 0))
-	{
-		buff = (uint8_t)USART2_RDR;
-		usart_send_blocking(USART1, buff);
-	}
-	else if (((USART_ISR(USART2) & USART_ISR_ORE) != 0))  //overrun, clear flag
-	{
-		USART1_ICR = USART_ICR_ORECF;
-	}
-}
-*/
-
 void init(void)
 {
 	rcc_clock_setup_in_hsi_out_8mhz();
@@ -150,15 +122,19 @@ void init(void)
 	rcc_periph_clock_enable(RCC_GPIOC);
 
 	//leds
-	gpio_mode_setup(LED_AUX_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_AUX_PIN);
-	gpio_mode_setup(LED_868_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_868_PIN);
-	gpio_mode_setup(LED_WIFI_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_WIFI_PIN);
+	gpio_mode_setup(LED_AUX_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, 
+            LED_AUX_PIN);
+	gpio_mode_setup(LED_868_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, 
+            LED_868_PIN);
+	gpio_mode_setup(LED_WIFI_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, 
+            LED_WIFI_PIN);
 	gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
 	gpio_clear(LED_868_PORT,LED_868_PIN);
 	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
 
 	//radio interrupt
-	gpio_mode_setup(RADIO_INT_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN, RADIO_INT_PIN);
+	gpio_mode_setup(RADIO_INT_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN, 
+            RADIO_INT_PIN);
 
 	//enable interrupts (just on one input)
 	RCC_APB2ENR |= (1<<0);
@@ -238,6 +214,7 @@ void usart2_isr(void)
         if ((d == '\n') || (d == '\r'))
             user_cr_flag = 1;
     }
+
     if (((USART_ISR(USART2) & USART_ISR_TXE) != 0))
     {
         if (user_out_buff_w != user_out_buff_r){
@@ -250,7 +227,7 @@ void usart2_isr(void)
             usart_disable_tx_interrupt(USART2);
         //USART_RQR(USART2) = USART_RQR_RXFRQ;
     }
-    else if (((USART_ISR(USART2) & USART_ISR_ORE) != 0))  //overrun, clear flag
+    else if (((USART_ISR(USART2) & USART_ISR_ORE) != 0)) //overrun, clear flag
     {
         USART2_ICR = USART_ICR_ORECF;
     }
@@ -305,6 +282,7 @@ static void process_user_buffer(void)
 			ssid_valid = 1;
 		}
 	}
+
 	if (strncmp("SETNAME",user_input_buff,min(user_input_ptr,7)) == 0){
 		argn = break_string_2_arg(user_input_buff,&arg1,&len1,&arg2,&len2);
 		if ((argn != 1) || (len1 > 32))
@@ -325,18 +303,22 @@ static void process_user_buffer(void)
 
 		}
 	}
+
 	if (strncmp("DEBUGON",user_input_buff,min(user_input_ptr,7)) == 0){
 		user_send_non_blocking_str("\r\n>");
 		debug_mode = 1;
 	}
+
 	if (strncmp("ESPRST",user_input_buff,min(user_input_ptr,6)) == 0){
 		user_send_non_blocking_str("\r\n>");
 		esp_reset();
 	}
+
 	if (strncmp("DEBUGOFF",user_input_buff,min(user_input_ptr,7)) == 0){
 		user_send_non_blocking_str("\r\n>");
 		debug_mode = 0;
 	}
+
 	if (strncmp("IPCONFIG",user_input_buff,min(user_input_ptr,8)) == 0){
 		user_send_non_blocking_str("\r\n>");
 		esp_run_echo("AT+CIFSR\r\n",&user_send_non_blocking_char);
@@ -347,8 +329,12 @@ static void process_user_buffer(void)
 
 }
 
-//returns how many parameters where found (not including the initial command), up to a max of 2 parameters
-static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len, char** para2, uint8_t* para2_len)
+/**
+ * returns how many parameters where found (not including the initial 
+ * command), up to a max of 2 parameters
+ */
+static uint8_t break_string_2_arg(char *input, char** para1, 
+        uint8_t* para1_len, char** para2, uint8_t* para2_len)
 {
 	uint8_t arg_start_count = 0;
 	uint8_t arg_end_count = 0;
@@ -359,7 +345,7 @@ static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len,
 	if (*input == 0)
 		return 0;
 
-	//find the initial command
+	// Find the initial command
 	while((run > 0) && (arg_end_count != 3))
 	{
 		if (((*input == ' ') || (*input == 0)) && (arg_start_count > 0) && (prev != ' ')){
@@ -371,8 +357,10 @@ static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len,
 				*para2_len = len;
 			}
 		}
+
 		if ((*input != ' ') && (arg_start_count == 0))
 			arg_start_count++;
+
 		if ((*input != ' ') && (arg_start_count == arg_end_count)){
 			arg_start_count++;
 			if (arg_start_count == 2){
@@ -418,7 +406,7 @@ void uart_send_blocking_len(uint8_t *buff, uint16_t len)
 {
 	uint16_t i = 0;
 	for (i = 0; i < len; i++)
-		usart_send_blocking(USART1,*buff++);
+		usart_send_blocking(USART1, *buff++);
 }
 
 int main(void)
@@ -472,8 +460,8 @@ int main(void)
 	uint8_t res;
 	if (ssid_valid)
     {
-		res = esp_connect_ap(ssid,pwd);//(WIFI_AP,WIFI_PASS);
-		if (res)
+		res = esp_connect_ap(ssid,pwd);
+		if(res)
         {
 			user_send_non_blocking_str("Failed to connect to ");
 			user_send_non_blocking_str(ssid);
@@ -507,7 +495,7 @@ int main(void)
 		if (flag_rx)
         {
 			flag_rx = 0;
-			bool res_69 =  checkRx(buff, &len, &rssi);
+			bool res_69 = checkRx(buff, &len, &rssi);
 
 			if (res_69)
             {
@@ -528,53 +516,40 @@ int main(void)
 			//upload_string((char*)buff,respbuff,respbuff_len,0);
 		}
 
-		//if stuff waiting to be uploaded
+		// If stuff waiting to be uploaded
 		if ((telem_avaliable()>0) & (esp_busy() == 0))
         {
 			int8_t b_rssi;
 			get_telem_buffer_peek((char*)buff, &b_rssi, 
                     sizeof(buff)/sizeof(char));
 			res = upload_string((char*)buff,respbuff,respbuff_len,b_rssi);
-			/*if (res){  //if upload failure
-				upload_tries++;
-				if (upload_tries > 5){
-					get_telem_buffer_pop(); //give up, remove item
-					upload_tries = 0;
-					user_send_non_blocking_str("Giving up sending after 5 retries\r\n");
-				}
-			}
-			else {
-				get_telem_buffer_pop(); //remove successfully uploaded string
-				upload_tries = 0;
-			}*/
-
 		}
 
-		if (esp_busy())
+        if(esp_busy())
         {
-			res = esp_service_upload_task();
-			if (res)
+            res = esp_service_upload_task();
+            if(res)
             {
-				if(res == ESP_UPLOAD_DONE_OK)
+                if(res == ESP_UPLOAD_DONE_OK)
                 {
-					res = 0;
-					get_telem_buffer_pop();
-					upload_tries = 0;
-				}
-				else
-				{
-					upload_tries++;
-					if (upload_tries > 5){
-						get_telem_buffer_pop();
-						upload_tries = 0;
-						user_send_non_blocking_str("Giving up sending after 5 retries\r\n");
-					}
-				}
-				upload_string_handle_response(res,respbuff);
-			}
-		}
+                    res = 0;
+                    get_telem_buffer_pop();
+                    upload_tries = 0;
+                }
+                else
+                {
+                    upload_tries++;
+                    if (upload_tries > 5){
+                        get_telem_buffer_pop();
+                        upload_tries = 0;
+                        user_send_non_blocking_str("Giving up sending after 5 retries\r\n");
+                    }
+                }
+                upload_string_handle_response(res,respbuff);
+            }
+        }
 
-		if (uart_passthrough)
+		if(uart_passthrough)
         {
 			usart_disable_tx_interrupt(USART2);
 			usart_disable_rx_interrupt(USART2);
@@ -603,38 +578,37 @@ int main(void)
 			}
 		}
 	}
-{
+
+    // Humidity sensor read
 	_delay_ms(1000);
 	uint16_t hum = convert_humidity(htu21_read_sensor(HTU21_READ_HUMID));
 	hum++;
-
-	//rf69_send((uint8_t *)packet,sizeof(packet)-1,10);
-}
     _delay_ms(1000);
+
 	esp_reset();
 	gpio_set(LED_868_PORT,LED_868_PIN);
 	while(esp_connect_ap(ssid,pwd)) ;
 	gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
 
 	uint8_t r;
-	while(1)
-	{
-		if (USART1_ISR & (1<<5)){  //RXNE
-			r = USART1_RDR;
-			usart_send_blocking(USART2, r);
-		}
-		if (USART2_ISR & (1<<5)){  //RXNE
-			r = USART2_RDR;
-			if ((r==10) || (r==13)){
-				usart_send_blocking(USART1, '\r');
-				usart_send_blocking(USART1, '\n');
-			}
-			else
-				usart_send_blocking(USART1, r);
-		}
-		USART1_ICR = (1<<3);
-		USART2_ICR = (1<<3);
-	}
+    while(1)
+    {
+        if (USART1_ISR & (1<<5)){  //RXNE
+            r = USART1_RDR;
+            usart_send_blocking(USART2, r);
+        }
+        if (USART2_ISR & (1<<5)){  //RXNE
+            r = USART2_RDR;
+            if ((r==10) || (r==13)){
+                usart_send_blocking(USART1, '\r');
+                usart_send_blocking(USART1, '\n');
+            }
+            else
+                usart_send_blocking(USART1, r);
+        }
+        USART1_ICR = (1<<3);
+        USART2_ICR = (1<<3);
+    }
 }
 
 void _delay_ms(const uint32_t delay)
@@ -646,7 +620,7 @@ void _delay_ms(const uint32_t delay)
             __asm__("nop");
 }
 
-//returns 1 for success, 0 for buffer full
+// Returns 1 for success, 0 for buffer full
 static uint8_t add_to_telem_buffer(char* string, int8_t rssi, 
         uint16_t max_len)
 {

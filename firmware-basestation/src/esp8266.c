@@ -5,6 +5,7 @@
 
 #include "esp8266.h"
 
+void reverse(char *s);
 void itoa(int n, char s[]);
 
 volatile uint8_t pending_command = 0;   //1-waiting for OK; 2-waiting for ready; 3-waiting for >; 4-LINKED;
