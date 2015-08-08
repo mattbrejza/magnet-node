@@ -21,7 +21,7 @@
 #include "htu21.h"
 #include "RFM69.h"
 
-#include "wifipass.h"
+
 
 
 //flash storage section
@@ -434,6 +434,8 @@ int main(void)
 	htu21_init();
 	init_wdt();
 
+	user_send_non_blocking_str("Booting... \r\n");
+
 	uint8_t name_len, ssid_len, pwd_len;
 	ssid_valid = read_settings_flash(node_name, &name_len, ssid, &ssid_len, pwd, &pwd_len);
 
@@ -471,16 +473,27 @@ int main(void)
 	char seq = 'a';
 
 	gpio_set(LED_AUX_PORT,LED_AUX_PIN);
-	uint8_t res = esp_connect_ap(ssid,pwd);//(WIFI_AP,WIFI_PASS);
-	if (res){
-		user_send_non_blocking_str("Failed to connect to ");
-		user_send_non_blocking_str(ssid);
-		user_send_non_blocking_str("\r\n>");
+	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
+	uint8_t res;
+	if (ssid_valid){
+		res = esp_connect_ap(ssid,pwd);//(WIFI_AP,WIFI_PASS);
+		if (res){
+			user_send_non_blocking_str("Failed to connect to ");
+			user_send_non_blocking_str(ssid);
+			gpio_set(LED_AUX_PORT,LED_AUX_PIN);
+			user_send_non_blocking_str("\r\n>");
+		}
+		else{
+			user_send_non_blocking_str("Wifi connected\r\n>");
+			gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
+		}
 	}
-	else
-		user_send_non_blocking_str("Wifi connected\r\n>");
-	gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
-	gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
+	else{
+		user_send_non_blocking_str("Wifi not configured\r\n>");
+		gpio_set(LED_AUX_PORT,LED_AUX_PIN);
+	}
+
+
 
 	while(1){
 
