@@ -26,7 +26,6 @@
 #define FLASH_STORAGE_LEN 0x800
 #define FLASH_PAGE_SIZE 0x800
 
-uint8_t buff;
 uint8_t flag_rx = 0;
 
 void init(void);
@@ -44,10 +43,10 @@ static void user_send_non_blocking_str(char* c);
 static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* 
         para1_len, char** para2, uint8_t* para2_len);
 static uint8_t erase_settings_page(void);
-static uint8_t write_settings_flash(char* node_name, uint8_t len_name, 
-        char* ssid, uint8_t ssid_len, char* pwd, uint8_t pwd_len);
-static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, 
-        char* ssid, uint8_t* ssid_len, char* pwd, uint8_t* pwd_len);
+static uint8_t write_settings_flash(char* nodename, uint8_t len_name, 
+        char* network_ssid, uint8_t ssid_len, char* pass, uint8_t pwd_len);
+static uint8_t read_settings_flash(char* nodename, uint8_t* name_len, 
+        char* network_ssid, uint8_t* ssid_len, char* pass, uint8_t* pwd_len);
 static uint8_t add_to_telem_buffer(char* string, int8_t rssi, 
         uint16_t max_len);
 static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, 
@@ -828,7 +827,7 @@ static uint8_t upload_string_handle_response(uint8_t res, char* response)
 			last_error = -15;
 		}
 		if (res != FAIL_NOT_200)
-			esp_connect_ap(ssid,pwd); //try connecting again
+			esp_connect_ap(ssid, pwd); //try connecting again
 	}
 	else
     {
@@ -922,8 +921,8 @@ static void user_send_non_blocking_str(char* c)
 
 
 //bit0 - name valid; bit1 - wifi valid
-static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, 
-        char* ssid, uint8_t* ssid_len, char* pwd, uint8_t* pwd_len)
+static uint8_t read_settings_flash(char* nodename, uint8_t* name_len, 
+        char* network_ssid, uint8_t* ssid_len, char* pass, uint8_t* pwd_len)
 {
 	uint32_t flash_ptr = (uint32_t)(FLASH_STORAGE_ADDR);
 	uint8_t return_val = 0;
@@ -940,7 +939,7 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len,
 	if (((lengths2 >> 8) & 0xFF) == 0x74 )
 		return_val |= (1<<0);
 
-	uint32_t out_ptr = (uint32_t)(node_name);
+	uint32_t out_ptr = (uint32_t)(nodename);
 	flash_ptr = (uint32_t)(FLASH_STORAGE_ADDR + 16);
 	uint8_t bytes_read = 0;
 
@@ -956,7 +955,7 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len,
 		}
 	}
 
-	out_ptr = (uint32_t)(ssid);
+	out_ptr = (uint32_t)(network_ssid);
 	flash_ptr = (uint32_t)(FLASH_STORAGE_ADDR + 16 + 64);
 	bytes_read=0;
 
@@ -970,9 +969,9 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len,
 			bytes_read += 4;
 		}
 
-		out_ptr = (uint32_t)(pwd);
+		out_ptr = (uint32_t)(pass);
 		flash_ptr = (uint32_t)(FLASH_STORAGE_ADDR + 16 + 64 + 64);
-		bytes_read=0;
+		bytes_read = 0;
 
 		// Now pwd
 		while(bytes_read < *pwd_len)
@@ -989,19 +988,20 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len,
 
 
 // Returns 1 for error
-static uint8_t write_settings_flash(char* node_name, uint8_t len_name, 
-        char* ssid, uint8_t ssid_len, char* pwd, uint8_t pwd_len)
+static uint8_t write_settings_flash(char* nodename, uint8_t len_name, 
+        char* network_ssid, uint8_t ssid_len, char* pass, uint8_t pwd_len)
 {
-	ssid_len = min(ssid_len,32);
-	pwd_len = min(pwd_len,64);
-	len_name = min(len_name,32);
+	ssid_len = min(ssid_len, 32);
+	pwd_len = min(pwd_len, 64);
+	len_name = min(len_name, 32);
 	uint32_t lens = (ssid_len<<0) | (pwd_len<<8) | (0x6A << 16);
 
 	uint32_t flash_ptr = (FLASH_STORAGE_ADDR);
 	uint32_t in_ptr = (uint32_t)(&lens);
 
 	// Write string lengths
-	if (ssid_len > 0){
+	if (ssid_len > 0)
+    {
 		flash_program_word(flash_ptr, *(uint32_t*)in_ptr);
 		if(flash_get_status_flags() != FLASH_SR_EOP)
 			return 1;
@@ -1013,13 +1013,13 @@ static uint8_t write_settings_flash(char* node_name, uint8_t len_name,
 		return 1;
 
 	// Write node name
-	in_ptr = (uint32_t)(node_name);
+	in_ptr = (uint32_t)(nodename);
 	flash_ptr = FLASH_STORAGE_ADDR + 16;
 
 	uint8_t bytes_written=0;
 	while(bytes_written < len_name)
 	{
-		/*programming word data*/
+		/* Programming word data */
 		flash_program_word(flash_ptr, *(uint32_t*)in_ptr);
 		if(flash_get_status_flags() != FLASH_SR_EOP)
 			return 1;
@@ -1030,13 +1030,13 @@ static uint8_t write_settings_flash(char* node_name, uint8_t len_name,
 	}
 
 	// Write ssid
-	in_ptr = (uint32_t)(ssid);
+	in_ptr = (uint32_t)(network_ssid);
 	flash_ptr = FLASH_STORAGE_ADDR + 16 + 64;
 
-	bytes_written=0;
+	bytes_written = 0;
 	while(bytes_written < ssid_len)
 	{
-		/*programming word data*/
+		/* Programming word data */
 		flash_program_word(flash_ptr, *(uint32_t*)in_ptr);
 		if(flash_get_status_flags() != FLASH_SR_EOP)
 			return 1;
@@ -1046,8 +1046,8 @@ static uint8_t write_settings_flash(char* node_name, uint8_t len_name,
 		bytes_written += 4;
 	}
 
-	//write pwd
-	in_ptr = (uint32_t)(pwd);
+	// Write password
+	in_ptr = (uint32_t)(pass);
 	flash_ptr = FLASH_STORAGE_ADDR + 16 + 64 +64;
 
 	bytes_written=0;
