@@ -495,8 +495,6 @@ int main(void)
             3, usbd_control_buffer, sizeof(usbd_control_buffer));
     usbd_register_set_config_callback(usbd_dev, cdcacm_set_config);
 
-    usbd_ep_write_packet(usbd_dev, 0x82, "Booting\r\n", 10);
-
 	while(1)
     {
 		uint8_t len;
