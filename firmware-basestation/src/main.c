@@ -20,6 +20,7 @@
 #include "esp8266.h"
 #include "htu21.h"
 #include "RFM69.h"
+#include "usb.h"
 
 // Flash storage section
 #define FLASH_STORAGE_ADDR ((uint32_t)0x0800f800)
@@ -88,6 +89,8 @@ static volatile uint8_t user_out_buff_w = 0;
 
 static uint8_t uart_passthrough = 0;
 
+extern uint8_t usbd_control_buffer[128];
+
 #define min(a,b) \
 ({ __typeof__ (a) _a = (a); \
    __typeof__ (b) _b = (b); \
@@ -116,7 +119,8 @@ void init_wdt(void)
 
 void init(void)
 {
-	rcc_clock_setup_in_hsi_out_8mhz();
+	//rcc_clock_setup_in_hsi_out_8mhz();
+    rcc_clock_setup_in_hsi48_out_48mhz();
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOC);
@@ -480,10 +484,26 @@ int main(void)
 		gpio_set(LED_AUX_PORT,LED_AUX_PIN);
 	}
 
+    // Configure USB
+    usbd_device *usbd_dev;
+
+    crs_configure_usbsof_autotrim();
+    rcc_set_usbclk_source(HSI48);
+    rcc_set_sysclk_source(HSI48);
+
+    usbd_dev = usbd_init(&stm32f0x2_usb_driver, &dev, &config, usb_strings, 
+            3, usbd_control_buffer, sizeof(usbd_control_buffer));
+    usbd_register_set_config_callback(usbd_dev, cdcacm_set_config);
+
+    usbd_ep_write_packet(usbd_dev, 0x82, "Booting\r\n", 10);
+
 	while(1)
     {
 		uint8_t len;
 		int8_t rssi;
+
+        // Poll USB
+        usbd_poll(usbd_dev);
 
 		IWDG_KR = 0xAAAA;
 
