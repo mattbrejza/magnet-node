@@ -21,15 +21,10 @@
 #include "htu21.h"
 #include "RFM69.h"
 
-
-
-
-//flash storage section
+// Flash storage section
 #define FLASH_STORAGE_ADDR ((uint32_t)0x0800f800)
 #define FLASH_STORAGE_LEN 0x800
 #define FLASH_PAGE_SIZE 0x800
-
-
 
 uint8_t buff;
 uint8_t flag_rx = 0;
@@ -38,18 +33,25 @@ void init(void);
 void _delay_ms(const uint32_t delay);
 void uart_send_blocking_len(uint8_t *buff, uint16_t len);
 uint8_t add_node_to_packet(char* inout, uint8_t len, uint8_t maxlen);
-uint8_t construct_upload_string(char* outbuff, char* inbuff, int8_t rssi, uint8_t maxlen);
+uint8_t construct_upload_string(char* outbuff, char* inbuff, int8_t rssi, 
+        uint8_t maxlen);
 void get_telemetry(char* buff, uint8_t maxlen, char *seq);
-uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_t rssi);
+uint8_t upload_string(char* string, char* response, uint16_t response_len, 
+        int8_t rssi);
 static void process_user_buffer(void);
 static void user_send_non_blocking_char(char c);
 static void user_send_non_blocking_str(char* c);
-static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len, char** para2, uint8_t* para2_len);
+static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* 
+        para1_len, char** para2, uint8_t* para2_len);
 static uint8_t erase_settings_page(void);
-static uint8_t write_settings_flash(char* node_name, uint8_t len_name, char* ssid, uint8_t ssid_len, char* pwd, uint8_t pwd_len);
-static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, char* ssid, uint8_t* ssid_len, char* pwd, uint8_t* pwd_len);
-static uint8_t add_to_telem_buffer(char* string, int8_t rssi, uint16_t max_len);
-static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, uint16_t max_len);
+static uint8_t write_settings_flash(char* node_name, uint8_t len_name, 
+        char* ssid, uint8_t ssid_len, char* pwd, uint8_t pwd_len);
+static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, 
+        char* ssid, uint8_t* ssid_len, char* pwd, uint8_t* pwd_len);
+static uint8_t add_to_telem_buffer(char* string, int8_t rssi, 
+        uint16_t max_len);
+static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, 
+        uint16_t max_len);
 static uint16_t get_telem_buffer_pop(void);
 static uint8_t telem_avaliable(void);
 static uint8_t upload_string_handle_response(uint8_t res, char* response);
@@ -63,7 +65,6 @@ int8_t last_error = 0; //used for encoding error messages into telemetry
 static uint8_t debug_mode = 0;
 
 static uint8_t error_count = 0;
-
 
 static char telem_buff[512];
 static uint16_t telem_ptr_w = 0;
@@ -98,20 +99,19 @@ static uint8_t uart_passthrough = 0;
 
 void init_wdt(void)
 {
-	RCC_CSR |= 1;   //LSI on
-	while(RCC_CSR&(1<<1));  //wait for LSI ready
+    RCC_CSR |= 1;   //LSI on
+    while(RCC_CSR&(1<<1));  //wait for LSI ready
 
-	while(IWDG_SR&1);
-	IWDG_KR = 0x5555;
-	IWDG_PR = 0b110; // 40kHz/256
+    while(IWDG_SR&1);
+    IWDG_KR = 0x5555;
+    IWDG_PR = 0b110; // 40kHz/256
 
-	while(IWDG_SR&2);
-	IWDG_KR = 0x5555;
-	IWDG_RLR = 2600;
+    while(IWDG_SR&2);
+    IWDG_KR = 0x5555;
+    IWDG_RLR = 2600;
 
-	IWDG_KR = 0xAAAA;
-	IWDG_KR = 0xCCCC;
-
+    IWDG_KR = 0xAAAA;
+    IWDG_KR = 0xCCCC;
 }
 
 /*
@@ -142,14 +142,12 @@ void usart2_isr(void)
 }
 */
 
-void init (void)
+void init(void)
 {
-
 	rcc_clock_setup_in_hsi_out_8mhz();
 	rcc_periph_clock_enable(RCC_GPIOB);
 	rcc_periph_clock_enable(RCC_GPIOA);
 	rcc_periph_clock_enable(RCC_GPIOC);
-
 
 	//leds
 	gpio_mode_setup(LED_AUX_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_PULLUP, LED_AUX_PIN);
@@ -158,7 +156,6 @@ void init (void)
 	gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
 	gpio_clear(LED_868_PORT,LED_868_PIN);
 	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
-
 
 	//radio interrupt
 	gpio_mode_setup(RADIO_INT_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN, RADIO_INT_PIN);
@@ -170,13 +167,11 @@ void init (void)
 	exti_enable_request(EXTI8);
 	nvic_enable_irq(NVIC_EXTI4_15_IRQ);
 
-
 	//systick
 	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB);
 	systick_set_reload(799999);
 	systick_interrupt_enable();
 	systick_counter_enable();
-
 
 	rcc_periph_clock_enable(RCC_USART1);
 	gpio_mode_setup(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO6|GPIO7);
@@ -208,58 +203,57 @@ void init (void)
 	esp_init();
 
 	rf69_init();
-
 }
 
 
 
 void usart1_isr(void)
 {
-	if (((USART_ISR(USART1) & USART_ISR_RXNE) != 0))
-	{
-		uint8_t d = (uint8_t)USART1_RDR;
-		esp_rx_byte(d);
-		if (debug_mode)
-			user_send_non_blocking_char(d);
-	}
-	else if (((USART_ISR(USART1) & USART_ISR_ORE) != 0))  //overrun, clear flag
-	{
-		USART1_ICR = USART_ICR_ORECF;
-	}
+    if (((USART_ISR(USART1) & USART_ISR_RXNE) != 0))
+    {
+        uint8_t d = (uint8_t)USART1_RDR;
+        esp_rx_byte(d);
+        if (debug_mode)
+            user_send_non_blocking_char(d);
+    }
+    else if (((USART_ISR(USART1) & USART_ISR_ORE) != 0))  //overrun, clear flag
+    {
+        USART1_ICR = USART_ICR_ORECF;
+    }
 }
 
 void usart2_isr(void)
 {
-	if (((USART_ISR(USART2) & USART_ISR_RXNE) != 0))
-	{
-		uint8_t d = (uint8_t)USART2_RDR;
-		if (((d == 127) && (user_input_ptr > 0)) || (d != 127))
-			user_send_non_blocking_char(d);  //echo
-		if ((d == 127) && (user_input_ptr > 0))
-			user_input_ptr--;
-		if ((d != 10) && (d != 13) && (d != 127))
-			user_input_buff[user_input_ptr++] = d;
-		if (user_input_ptr >= sizeof(user_input_buff)/sizeof(char))
-			user_input_ptr = sizeof(user_input_buff)/sizeof(char)-1;
-		if ((d == '\n') || (d == '\r'))
-			user_cr_flag = 1;
-	}
-	if (((USART_ISR(USART2) & USART_ISR_TXE) != 0))
-	{
-		if (user_out_buff_w != user_out_buff_r){
-			USART_TDR(USART2) = user_out_buff[user_out_buff_r];
-			user_out_buff_r++;
-			if (user_out_buff_r >= sizeof(user_out_buff)/sizeof(char))
-				user_out_buff_r = 0;
-		}
-		else
-			usart_disable_tx_interrupt(USART2);
-			//USART_RQR(USART2) = USART_RQR_RXFRQ;
-	}
-	else if (((USART_ISR(USART2) & USART_ISR_ORE) != 0))  //overrun, clear flag
-	{
-		USART2_ICR = USART_ICR_ORECF;
-	}
+    if (((USART_ISR(USART2) & USART_ISR_RXNE) != 0))
+    {
+        uint8_t d = (uint8_t)USART2_RDR;
+        if (((d == 127) && (user_input_ptr > 0)) || (d != 127))
+            user_send_non_blocking_char(d);  //echo
+        if ((d == 127) && (user_input_ptr > 0))
+            user_input_ptr--;
+        if ((d != 10) && (d != 13) && (d != 127))
+            user_input_buff[user_input_ptr++] = d;
+        if (user_input_ptr >= sizeof(user_input_buff)/sizeof(char))
+            user_input_ptr = sizeof(user_input_buff)/sizeof(char)-1;
+        if ((d == '\n') || (d == '\r'))
+            user_cr_flag = 1;
+    }
+    if (((USART_ISR(USART2) & USART_ISR_TXE) != 0))
+    {
+        if (user_out_buff_w != user_out_buff_r){
+            USART_TDR(USART2) = user_out_buff[user_out_buff_r];
+            user_out_buff_r++;
+            if (user_out_buff_r >= sizeof(user_out_buff)/sizeof(char))
+                user_out_buff_r = 0;
+        }
+        else
+            usart_disable_tx_interrupt(USART2);
+        //USART_RQR(USART2) = USART_RQR_RXFRQ;
+    }
+    else if (((USART_ISR(USART2) & USART_ISR_ORE) != 0))  //overrun, clear flag
+    {
+        USART2_ICR = USART_ICR_ORECF;
+    }
 }
 
 static void process_user_buffer(void)
@@ -418,7 +412,6 @@ void exti4_15_isr(void)
 		if ((EXTI_PR & (GPIO8)) != 0)
 			EXTI_PR |= (GPIO8);
 	}
-
 }
 
 void uart_send_blocking_len(uint8_t *buff, uint16_t len)
@@ -437,9 +430,10 @@ int main(void)
 	user_send_non_blocking_str("Booting... \r\n");
 
 	uint8_t name_len, ssid_len, pwd_len;
-	ssid_valid = read_settings_flash(node_name, &name_len, ssid, &ssid_len, pwd, &pwd_len);
+	ssid_valid = read_settings_flash(node_name, &name_len, ssid, &ssid_len, 
+            pwd, &pwd_len);
 
-	//set node name to default if yet to be configured
+	// Set node name to default if yet to be configured
 	uint8_t ptr = 0;
 	if ((ssid_valid & (1<<0))== 0){
 		while(node_name_default[ptr]){
@@ -450,18 +444,19 @@ int main(void)
 	else
 		node_name[name_len] = 0;  //just to be sure
 
-	//set wifi valid flag
-	if (ssid_valid & (1<<1)){
+	// Set wifi valid flag
+	if (ssid_valid & (1<<1))
+    {
 		ssid_valid = 1;
 		ssid[ssid_len] = 0;
 		pwd[pwd_len] = 0;
 	}
-	else{
+	else
+    {
 		ssid_valid = 0;
 		ssid[0] = 0;
 		pwd[0] = 0;
 	}
-
 
 	uint8_t buff[64];
 	char respbuff[512];
@@ -475,28 +470,30 @@ int main(void)
 	gpio_set(LED_AUX_PORT,LED_AUX_PIN);
 	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
 	uint8_t res;
-	if (ssid_valid){
+	if (ssid_valid)
+    {
 		res = esp_connect_ap(ssid,pwd);//(WIFI_AP,WIFI_PASS);
-		if (res){
+		if (res)
+        {
 			user_send_non_blocking_str("Failed to connect to ");
 			user_send_non_blocking_str(ssid);
 			gpio_set(LED_AUX_PORT,LED_AUX_PIN);
 			user_send_non_blocking_str("\r\n>");
 		}
-		else{
+		else
+        {
 			user_send_non_blocking_str("Wifi connected\r\n>");
 			gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
 		}
 	}
-	else{
+	else
+    {
 		user_send_non_blocking_str("Wifi not configured\r\n>");
 		gpio_set(LED_AUX_PORT,LED_AUX_PIN);
 	}
 
-
-
-	while(1){
-
+	while(1)
+    {
 		uint8_t len;
 		int8_t rssi;
 
@@ -507,18 +504,22 @@ int main(void)
 		if (user_cr_flag)
 			process_user_buffer();
 
-		if (flag_rx){
+		if (flag_rx)
+        {
 			flag_rx = 0;
 			bool res_69 =  checkRx(buff, &len, &rssi);
 
-
-			if (res_69 == true){
+			if (res_69)
+            {
 				gpio_set(LED_868_PORT,LED_868_PIN);
-				if (add_node_to_packet((char*)buff,len,sizeof(buff)/sizeof(char))>0){
-					add_to_telem_buffer((char*)buff,rssi,sizeof(buff)/sizeof(char));
+				if (add_node_to_packet((char*)buff, len, 
+                            sizeof(buff)/sizeof(char))>0){
+					add_to_telem_buffer((char*)buff, rssi, 
+                            sizeof(buff)/sizeof(char));
 				}
 			}
 		}
+
 		if (telem_count == 0)
 		{
 			telem_count = 450;
@@ -528,9 +529,11 @@ int main(void)
 		}
 
 		//if stuff waiting to be uploaded
-		if ((telem_avaliable()>0) & (esp_busy() == 0)){
+		if ((telem_avaliable()>0) & (esp_busy() == 0))
+        {
 			int8_t b_rssi;
-			get_telem_buffer_peek((char*)buff,&b_rssi,sizeof(buff)/sizeof(char));
+			get_telem_buffer_peek((char*)buff, &b_rssi, 
+                    sizeof(buff)/sizeof(char));
 			res = upload_string((char*)buff,respbuff,respbuff_len,b_rssi);
 			/*if (res){  //if upload failure
 				upload_tries++;
@@ -547,10 +550,13 @@ int main(void)
 
 		}
 
-		if (esp_busy()){
+		if (esp_busy())
+        {
 			res = esp_service_upload_task();
-			if (res){
-				if(res == ESP_UPLOAD_DONE_OK){
+			if (res)
+            {
+				if(res == ESP_UPLOAD_DONE_OK)
+                {
 					res = 0;
 					get_telem_buffer_pop();
 					upload_tries = 0;
@@ -568,9 +574,8 @@ int main(void)
 			}
 		}
 
-
-
-		if (uart_passthrough){
+		if (uart_passthrough)
+        {
 			usart_disable_tx_interrupt(USART2);
 			usart_disable_rx_interrupt(USART2);
 			usart_disable_rx_interrupt(USART1);
@@ -578,11 +583,13 @@ int main(void)
 			while(1)
 			{
 				IWDG_KR = 0xAAAA;
-				if (USART1_ISR & (1<<5)){  //RXNE
+				if (USART1_ISR & (1<<5))
+                {
 					r = USART1_RDR;
 					usart_send_blocking(USART2, r);
 				}
-				if (USART2_ISR & (1<<5)){  //RXNE
+				if (USART2_ISR & (1<<5))
+                {
 					r = USART2_RDR;
 					if ((r==10) || (r==13)){
 						usart_send_blocking(USART1, '\r');
@@ -603,12 +610,11 @@ int main(void)
 
 	//rf69_send((uint8_t *)packet,sizeof(packet)-1,10);
 }
-_delay_ms(1000);
+    _delay_ms(1000);
 	esp_reset();
 	gpio_set(LED_868_PORT,LED_868_PIN);
 	while(esp_connect_ap(ssid,pwd)) ;
 	gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
-
 
 	uint8_t r;
 	while(1)
@@ -641,32 +647,36 @@ void _delay_ms(const uint32_t delay)
 }
 
 //returns 1 for success, 0 for buffer full
-static uint8_t add_to_telem_buffer(char* string, int8_t rssi, uint16_t max_len)
+static uint8_t add_to_telem_buffer(char* string, int8_t rssi, 
+        uint16_t max_len)
 {
 	char suffix[] = {3,rssi,0};
 	uint16_t count = 0;
 	uint16_t write_ptr_old = telem_ptr_w;
-	while((*string) && (count < (max_len))){
+	while((*string) && (count < (max_len)))
+    {
 		telem_buff[telem_ptr_w++] = *string++;
 
 		if (telem_ptr_w >= (sizeof(telem_buff)/sizeof(char)))
 			telem_ptr_w = 0;
-		if (telem_ptr_w == telem_ptr_r){    //if run out of buffer space
-			telem_ptr_w = write_ptr_old;    //restore buffer to how it was before
-			return 0;
+		if (telem_ptr_w == telem_ptr_r)     //if run out of buffer space
+        {
+			telem_ptr_w = write_ptr_old;    //restore buffer
 		}
 		count++;
 	}
 
-	//write the rssi and null terminator
+	// Write the rssi and null terminator
 	uint8_t i=0;
-	for(i = 0; i < 3; i++){
+	for(i = 0; i < 3; i++)
+    {
 		telem_buff[telem_ptr_w++] = suffix[i];
 
 		if (telem_ptr_w >= (sizeof(telem_buff)/sizeof(char)))
 			telem_ptr_w = 0;
-		if (telem_ptr_w == telem_ptr_r){    //if run out of buffer space
-			telem_ptr_w = write_ptr_old;    //restore buffer to how it was before
+		if (telem_ptr_w == telem_ptr_r)
+        {
+			telem_ptr_w = write_ptr_old;    //restore buffer 
 			return 0;
 		}
 		count++;
@@ -675,8 +685,9 @@ static uint8_t add_to_telem_buffer(char* string, int8_t rssi, uint16_t max_len)
 	return 1;
 }
 
-//returns length of string
-static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, uint16_t max_len)
+// Returns length of string
+static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, 
+        uint16_t max_len)
 {
 	if (telem_avaliable() == 0)
 		return 0;
@@ -689,14 +700,16 @@ static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, uint16_t max_len)
 		*out++ = telem_buff[ptr_r++];
 		if (ptr_r >= (sizeof(telem_buff)/sizeof(char)))
 			ptr_r = 0;
-		if (telem_ptr_w == ptr_r){ //should never occur
+		if (telem_ptr_w == ptr_r)
+        {
 			*out = '\0';
 			return count;
 		}
 	}
 
-	//read rssi
-	if (telem_buff[ptr_r] == 3){
+	// Read rssi
+	if (telem_buff[ptr_r] == 3)
+    {
 		ptr_r++;
 		if (ptr_r >= (sizeof(telem_buff)/sizeof(char)))
 			ptr_r = 0;
@@ -706,7 +719,8 @@ static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, uint16_t max_len)
 	*out = '\0';
 	return count;
 }
-//returns length of string
+
+// Returns length of string
 static uint16_t get_telem_buffer_pop(void)
 {
 	if (telem_avaliable() == 0)
@@ -724,7 +738,8 @@ static uint16_t get_telem_buffer_pop(void)
 	}
 
 	//read rssi
-	if (telem_buff[telem_ptr_r] == 3){
+	if (telem_buff[telem_ptr_r] == 3)
+    {
 		telem_ptr_r++;
 		if (telem_ptr_r >= (sizeof(telem_buff)/sizeof(char)))
 			telem_ptr_r = 0;
@@ -739,7 +754,7 @@ static uint16_t get_telem_buffer_pop(void)
 	return count;
 }
 
-//returns 1 for telem available, otherwise 0
+// Returns 1 for telem available, otherwise 0
 static uint8_t telem_avaliable(void)
 {
 	if (telem_ptr_w == telem_ptr_r)
@@ -749,7 +764,8 @@ static uint8_t telem_avaliable(void)
 }
 
 //0 - success, >=1 - error
-uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_t rssi)
+uint8_t upload_string(char* string, char* response, uint16_t response_len, 
+        int8_t rssi)
 {
 
 	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
@@ -776,7 +792,8 @@ uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_
 	if (i >= 127)
 		return 0;
 
-	esp_upload_node_non_blocking_start("ukhas.net",txbuff,response,response_len,&server_response_length);
+	esp_upload_node_non_blocking_start("ukhas.net", txbuff, response,
+            response_len, &server_response_length);
 	return 0;
 	//uint8_t res = esp_upload_node("ukhas.net",txbuff,response,response_len,&res_len);
 	//return upload_string_handle_response(res, response);
@@ -784,7 +801,8 @@ uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_
 
 static uint8_t upload_string_handle_response(uint8_t res, char* response)
 {
-	if (res){
+	if (res)
+    {
 		char errcode[3];
 		snprintf(errcode,3,"%02x",res);
 		user_send_non_blocking_str("\r\n\r\nUpload failed with error code 0x");
@@ -800,23 +818,23 @@ static uint8_t upload_string_handle_response(uint8_t res, char* response)
 			usart_send_blocking(USART2, (uint8_t)(*rb++));
 		if (res == FAIL_FATAL){
 		//	esp_reset();  //uncomment this when finished debugging why it occurs in the first place
-			user_send_non_blocking_str("\r\n\r\nFATAL ERROR!!! RESETTING ESP... \r\n\r\n>");
+			user_send_non_blocking_str("\r\n\r\nFATAL ERROR! RESETTING ESP... \r\n\r\n>");
 			last_error = -10;
 		}
 		if (error_count > 10){
 			esp_reset();
-			user_send_non_blocking_str("\r\n\r\nToo many errors!!! RESETTING ESP... \r\n\r\n>");
+			user_send_non_blocking_str("\r\n\r\nToo many errors! RESETTING ESP... \r\n\r\n>");
 			error_count = 0;
 			last_error = -15;
 		}
 		if (res != FAIL_NOT_200)
-			esp_connect_ap(ssid,pwd);//WIFI_AP,WIFI_PASS); //try connecting again
+			esp_connect_ap(ssid,pwd); //try connecting again
 	}
-	else{
+	else
+    {
 		error_count = 0;
 		gpio_clear(LED_AUX_PORT,LED_AUX_PIN);
 		gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
-
 	}
 
 	gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
@@ -830,10 +848,10 @@ void get_telemetry(char* buff, uint8_t maxlen, char *seq)
 	uint16_t h = convert_humidity(hr);//&0x7FFF);
 	int16_t t = convert_temperature(tr);//&0x7FFF);
 
+	t = t/10;
 
-	t=t/10;
-
-	if (last_error){    //hides error messages in telemetry
+	if (last_error)
+    {    //hides error messages in telemetry
 		t = last_error;
 		last_error = 0;
 	}
@@ -847,45 +865,41 @@ void get_telemetry(char* buff, uint8_t maxlen, char *seq)
 	(*seq)++;
 	if (*seq > 'z')
 		*seq = 'b';
-
 }
 
-
-
-//retuns 0 for error, otherwise the new length
+// Returns 0 for error, otherwise the new length
 uint8_t add_node_to_packet(char* inout, uint8_t len, uint8_t maxlen)
 {
-	while(len--)
-	{
-		if (inout[len] == ']'){
-			inout[len] = ',';
-			len++;
-			const char* p = &node_name[0];
-			while(*p){
-				if (len >= maxlen)
-					return 0;
-				inout[len] = *p;
-				len++;
-				p++;
-			}
-			if ((len+1) >= maxlen)
-				return 0;
-			inout[len++] = ']';
-			inout[len++] = '\0';
+    while(len--)
+    {
+        if (inout[len] == ']')
+        {
+            inout[len] = ',';
+            len++;
+            const char* p = &node_name[0];
+            while(*p){
+                if (len >= maxlen)
+                    return 0;
+                inout[len] = *p;
+                len++;
+                p++;
+            }
+            if ((len+1) >= maxlen)
+                return 0;
+            inout[len++] = ']';
+            inout[len++] = '\0';
 
-			//decrement first number
-			if ((inout[0] > '0') && (inout[0] <= '9'))
-				inout[0]--;
-			return len;
-
-		}
-	}
-	return 0;
+            //decrement first number
+            if ((inout[0] > '0') && (inout[0] <= '9'))
+                inout[0]--;
+            return len;
+        }
+    }
+    return 0;
 }
 
 static void user_send_non_blocking_char(char c)
 {
-
 	user_out_buff[user_out_buff_w++] = c;
 	uint8_t send;
 	if (user_out_buff_w == user_out_buff_r)
@@ -898,7 +912,6 @@ static void user_send_non_blocking_char(char c)
 		 USART_TDR(USART2) = c;
 
 	usart_enable_tx_interrupt(USART2);
-
 }
 
 static void user_send_non_blocking_str(char* c)
@@ -909,12 +922,13 @@ static void user_send_non_blocking_str(char* c)
 
 
 //bit0 - name valid; bit1 - wifi valid
-static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, char* ssid, uint8_t* ssid_len, char* pwd, uint8_t* pwd_len)
+static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, 
+        char* ssid, uint8_t* ssid_len, char* pwd, uint8_t* pwd_len)
 {
 	uint32_t flash_ptr = (uint32_t)(FLASH_STORAGE_ADDR);
 	uint8_t return_val = 0;
 
-	//read lengths first
+	// Read lengths first
 	uint32_t lengths1 = *(uint32_t*)flash_ptr;
 	flash_ptr+=4;
 	uint32_t lengths2 = *(uint32_t*)flash_ptr;
@@ -931,7 +945,8 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, char* ssi
 	uint8_t bytes_read = 0;
 
 	//now read each string
-	if (return_val & (1<<0)){
+	if (return_val & (1<<0))
+    {
 		while(bytes_read < *name_len)
 		{
 			*(uint32_t*)out_ptr = *(uint32_t*)flash_ptr;
@@ -944,7 +959,8 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, char* ssi
 	out_ptr = (uint32_t)(ssid);
 	flash_ptr = (uint32_t)(FLASH_STORAGE_ADDR + 16 + 64);
 	bytes_read=0;
-	//now ssid
+
+	// Now ssid
 	if (return_val & (1<<1)){
 		while(bytes_read < *ssid_len)
 		{
@@ -957,7 +973,8 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, char* ssi
 		out_ptr = (uint32_t)(pwd);
 		flash_ptr = (uint32_t)(FLASH_STORAGE_ADDR + 16 + 64 + 64);
 		bytes_read=0;
-		//now pwd
+
+		// Now pwd
 		while(bytes_read < *pwd_len)
 		{
 			*(uint32_t*)out_ptr = *(uint32_t*)flash_ptr;
@@ -971,8 +988,9 @@ static uint8_t read_settings_flash(char* node_name, uint8_t* name_len, char* ssi
 }
 
 
-//returns 1 for error
-static uint8_t write_settings_flash(char* node_name, uint8_t len_name, char* ssid, uint8_t ssid_len, char* pwd, uint8_t pwd_len)
+// Returns 1 for error
+static uint8_t write_settings_flash(char* node_name, uint8_t len_name, 
+        char* ssid, uint8_t ssid_len, char* pwd, uint8_t pwd_len)
 {
 	ssid_len = min(ssid_len,32);
 	pwd_len = min(pwd_len,64);
@@ -982,7 +1000,7 @@ static uint8_t write_settings_flash(char* node_name, uint8_t len_name, char* ssi
 	uint32_t flash_ptr = (FLASH_STORAGE_ADDR);
 	uint32_t in_ptr = (uint32_t)(&lens);
 
-	//write string lengths
+	// Write string lengths
 	if (ssid_len > 0){
 		flash_program_word(flash_ptr, *(uint32_t*)in_ptr);
 		if(flash_get_status_flags() != FLASH_SR_EOP)
@@ -994,8 +1012,7 @@ static uint8_t write_settings_flash(char* node_name, uint8_t len_name, char* ssi
 	if(flash_get_status_flags() != FLASH_SR_EOP)
 		return 1;
 
-
-	//write node name
+	// Write node name
 	in_ptr = (uint32_t)(node_name);
 	flash_ptr = FLASH_STORAGE_ADDR + 16;
 
@@ -1012,7 +1029,7 @@ static uint8_t write_settings_flash(char* node_name, uint8_t len_name, char* ssi
 		bytes_written += 4;
 	}
 
-	//write ssid
+	// Write ssid
 	in_ptr = (uint32_t)(ssid);
 	flash_ptr = FLASH_STORAGE_ADDR + 16 + 64;
 
@@ -1047,10 +1064,9 @@ static uint8_t write_settings_flash(char* node_name, uint8_t len_name, char* ssi
 	}
 
 	return 0;
-
 }
 
-//returns 0 for error
+// Returns 0 for error
 static uint8_t erase_settings_page(void)
 {
 	flash_erase_page(FLASH_STORAGE_ADDR);
