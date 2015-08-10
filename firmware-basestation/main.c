@@ -21,7 +21,7 @@
 #include "htu21.h"
 #include "RFM69.h"
 
-
+//#define USE_HTU
 
 
 //flash storage section
@@ -207,7 +207,7 @@ void init (void)
 
 	esp_init();
 
-	rf69_init();
+
 
 }
 
@@ -431,10 +431,16 @@ void uart_send_blocking_len(uint8_t *buff, uint16_t len)
 int main(void)
 {
 	init();
+#ifdef USE_HTU
 	htu21_init();
+#endif
 	init_wdt();
 
 	user_send_non_blocking_str("Booting... \r\n");
+
+	if (rf69_init() == false)
+		user_send_non_blocking_str("RFM startup failure\r\n");
+
 
 	uint8_t name_len, ssid_len, pwd_len;
 	ssid_valid = read_settings_flash(node_name, &name_len, ssid, &ssid_len, pwd, &pwd_len);
@@ -825,10 +831,16 @@ static uint8_t upload_string_handle_response(uint8_t res, char* response)
 
 void get_telemetry(char* buff, uint8_t maxlen, char *seq)
 {
+#ifdef USE_HTU
 	uint16_t hr = htu21_read_sensor(HTU21_READ_HUMID);
 	uint16_t tr = htu21_read_sensor(HTU21_READ_TEMP);
 	uint16_t h = convert_humidity(hr);//&0x7FFF);
 	int16_t t = convert_temperature(tr);//&0x7FFF);
+#else
+	uint16_t h = 0;
+	int16_t t = 0;
+#endif
+
 
 
 	t=t/10;
