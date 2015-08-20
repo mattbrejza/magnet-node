@@ -320,7 +320,7 @@ static void process_user_buffer(void)
 		//usart_set_baudrate(USART2, 75120 );
 		//usart_enable(USART1);
 		//usart_enable(USART2);
-		esp_bootload();
+
 		uart_passthrough = 2;
 	}
 	if (strncmp("SETNAME",user_input_buff,min(user_input_ptr,7)) == 0){
@@ -588,6 +588,7 @@ int main(void)
 
 
 		if (uart_passthrough == 2){//uart_passthrough){
+			esp_bootload();
 			usart_disable_tx_interrupt(USART2);
 			usart_disable_rx_interrupt(USART2);
 			usart_disable_rx_interrupt(USART1);

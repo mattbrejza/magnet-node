@@ -100,16 +100,25 @@ uint8_t esp_reset(void)
 void esp_bootload(void)
 {
 	timeout = 20;
+	gpio_clear(GPIOF,GPIO0); //CH_PD low
 	gpio_clear(GPIOA,GPIO0);  //GPIO0 low
-	gpio_clear(GPIOF,GPIO1); //RST low
-	gpio_set(GPIOF,GPIO0); //CH_PD low
+//	gpio_clear(GPIOF,GPIO1); //RST low
+
 	while(timeout);
-	gpio_set(GPIOF,GPIO1); //RST high
+//	gpio_set(GPIOF,GPIO1); //RST high
 	gpio_set(GPIOF,GPIO0); //CH_PD high
 	timeout = 10;
 	while(timeout);
 
 	clear_buffer();
+	/*
+	timeout = 10;
+	while(timeout);
+	gpio_clear(GPIOF,GPIO0); //CH_PD low
+	timeout = 1;
+	while(timeout);
+	gpio_set(GPIOF,GPIO0); //CH_PD low
+	*/
 }
 
 uint8_t esp_disconnect_ap(void)
