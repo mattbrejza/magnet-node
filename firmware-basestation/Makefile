@@ -78,7 +78,7 @@ endif
 #
 
 # Define project name here
-PROJECT = ch
+PROJECT = ukhasnet-dongle
 
 # Imported source files and paths
 CHIBIOS = ./ChibiOS
