@@ -1,3 +1,6 @@
 [submodule "libopencm3"]
 	path = firmware-basestation/libopencm3
 	url = git@github.com:BuFran/libopencm3.git
+[submodule "firmware-basestation/ChibiOS"]
+	path = firmware-basestation/ChibiOS
+	url = git@github.com:ChibiOS/ChibiOS.git
