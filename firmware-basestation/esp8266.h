@@ -12,6 +12,7 @@ void esp_run_echo(char* command, void (*print_char)(char));
 uint8_t esp_service_upload_task(void);
 void esp_upload_node_non_blocking_start(char* dest_ip, char* string, char* respbuff, uint16_t resp_maxlen, uint16_t* resp_len);
 uint8_t esp_busy(void);
+void esp_bootload(void);
 //uint8_t esp_conn_close(void);
 
 #define FAIL_DNS 0xF0

@@ -19,8 +19,9 @@ static void process_esp_buffer(void);
 static void clear_buffer(void);
 static uint8_t look_for_200(void);
 
-static char upload_string_s[] = "POST /api/upload HTTP/1.0\nHost: ukhas.net\nContent-Type: application/x-www-form-urlencoded\nContent-Length: ";
-static char upload_string_e[] = "\nConnection: close\n\n";
+static char upload_string_s[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
+static char upload_string_e[] = "\r\nConnection: close\r\n\r\n";
+char upload_firmware_bodge_factor = 0;//10;
 
 //serial buffer
 #define ESP_BUFF_LEN 60
@@ -61,19 +62,23 @@ void esp_init(void)
 	//RST low->high
 	gpio_mode_setup(GPIOF,GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0|GPIO1);
 	gpio_clear(GPIOF,GPIO0|GPIO1);  //RST low
-	gpio_mode_setup(GPIOA,GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0|GPIO1); //GPIO0/15
+	gpio_clear(GPIOF,GPIO0); //CH_PD low
+	gpio_mode_setup(GPIOA,GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO1); //GPIO15
+	gpio_mode_setup(GPIOA,GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO0); //GPIO15
 
-	gpio_set(GPIOA,GPIO0);  //GPIO0 high
+	gpio_set(GPIOA,GPIO0); //gpio_clear(GPIOA,GPIO0);  //GPIO0 low   gpio_set(GPIOA,GPIO0);  //GPIO0 high
 	gpio_clear(GPIOA,GPIO1);//GPIO15 low
 	gpio_set(GPIOF,GPIO0); //CH_PD high
+	gpio_set(GPIOF,GPIO1); //RST high
 	timeout = 2;
 	while(timeout);
-	gpio_set(GPIOF,GPIO1); //RST high
+
 }
 
 uint8_t esp_reset(void)
 {
 	timeout = 20;
+	gpio_set(GPIOA,GPIO0);  //gpio_clear(GPIOA,GPIO0);  //GPIO0 low    gpio_set(GPIOA,GPIO0);  //GPIO0 high
 	gpio_clear(GPIOF,GPIO1); //RST low
 	gpio_set(GPIOF,GPIO0); //CH_PD low
 	while(timeout);
@@ -90,6 +95,21 @@ uint8_t esp_reset(void)
 	if (pending_command > 1) //failure
 		return pending_command;
 	return 0;
+}
+
+void esp_bootload(void)
+{
+	timeout = 20;
+	gpio_clear(GPIOA,GPIO0);  //GPIO0 low
+	gpio_clear(GPIOF,GPIO1); //RST low
+	gpio_set(GPIOF,GPIO0); //CH_PD low
+	while(timeout);
+	gpio_set(GPIOF,GPIO1); //RST high
+	gpio_set(GPIOF,GPIO0); //CH_PD high
+	timeout = 10;
+	while(timeout);
+
+	clear_buffer();
 }
 
 uint8_t esp_disconnect_ap(void)
@@ -172,7 +192,8 @@ static void upload_step2_nb(char* dest_ip, char* string, char* respbuff, uint16_
 	uint16_t len = strlen(string);
 	itoa(len,buff1);
 	itoa(len + sizeof(upload_string_s)/sizeof(char)-1 + strlen(buff1)
-			 + sizeof(upload_string_e)/sizeof(char)-1 + 4,buff2);
+			 + sizeof(upload_string_e)/sizeof(char)-1 + 4-upload_firmware_bodge_factor,buff2);
+//	upload_firmware_bodge_factor++;
 
 	pending_command = 3;  //waiting for >
 	uart_send_blocking_string("AT+CIPSEND=");
@@ -194,6 +215,7 @@ static void upload_step3_nb(char* dest_ip, char* string, char* respbuff, uint16_
 	uart_send_blocking_string(upload_string_e);
 	uart_send_blocking_string(string);
 	uart_send_blocking_string("\r\n\r\n");
+//	uart_send_blocking_string(".............\r\n"); //bodging...
 	response_ptr = 0;
 
 	timeout = 40;
@@ -384,6 +406,12 @@ void esp_process_line_rx(char *buffin, uint16_t line_start, uint16_t line_end, u
 					pending_command = 0;
 			}
 		}
+		//if (count == 7){
+		//	if (strncmp_circ(buffin, "CONNECT", line_start+text_start, buff_len, 7)){
+		//		if (pending_command == 3)
+		//			pending_command = 1;
+		//	}
+		//}
 		if (count == 5){
 			if (strncmp_circ(buffin, "ready", line_start+text_start, buff_len, 5)){
 				if (pending_command == 2)
@@ -431,6 +459,12 @@ void esp_process_line_rx(char *buffin, uint16_t line_start, uint16_t line_end, u
 			if (strncmp_circ(buffin, "Linked", line_start+text_start, buff_len, 6)){
 				if (pending_command == 4)
 					pending_command = 0;
+			}
+		}
+		if (count == 7){
+			if (strncmp_circ(buffin, "CONNECT", line_start+text_start, buff_len, 7)){
+				if (pending_command == 4)
+					pending_command = 1;
 			}
 		}
 		if (count == 14){

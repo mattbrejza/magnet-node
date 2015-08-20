@@ -311,6 +311,18 @@ static void process_user_buffer(void)
 			ssid_valid = 1;
 		}
 	}
+	if (strncmp("ESPPROG",user_input_buff,min(user_input_ptr,7)) == 0){
+		user_send_non_blocking_str("\r\nResetting ESP into bootload mode...\r\n");
+		//user_send_non_blocking_str("Baud rate changing to xxxxx\r\n");
+		//usart_enable(USART1);
+		//usart_enable(USART2);
+		//usart_set_baudrate(USART1, 75120 );
+		//usart_set_baudrate(USART2, 75120 );
+		//usart_enable(USART1);
+		//usart_enable(USART2);
+		esp_bootload();
+		uart_passthrough = 2;
+	}
 	if (strncmp("SETNAME",user_input_buff,min(user_input_ptr,7)) == 0){
 		argn = break_string_2_arg(user_input_buff,&arg1,&len1,&arg2,&len2);
 		if ((argn != 1) || (len1 > 32))
@@ -575,6 +587,41 @@ int main(void)
 		}
 
 
+		if (uart_passthrough == 2){//uart_passthrough){
+			usart_disable_tx_interrupt(USART2);
+			usart_disable_rx_interrupt(USART2);
+			usart_disable_rx_interrupt(USART1);
+			systick_interrupt_disable();
+			systick_counter_disable();
+			nvic_disable_irq(NVIC_EXTI4_15_IRQ);
+
+			rcc_clock_setup_in_hsi_out_48mhz();
+
+			usart_disable(USART1);
+			rcc_periph_clock_disable(RCC_USART1);
+			usart_disable(USART2);
+			rcc_periph_clock_disable(RCC_USART2);
+			gpio_mode_setup(GPIOA, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO2);
+			gpio_mode_setup(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO3);
+			gpio_mode_setup(GPIOB, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, GPIO6);
+			gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO7);
+
+
+			uint8_t r;
+			while(1)
+			{
+				IWDG_KR = 0xAAAA;
+				if (GPIOA_IDR & GPIO3)
+					GPIOB_BSRR = GPIO6;
+				else
+					GPIOB_BSRR = GPIO6<<16;
+				if (GPIOB_IDR & GPIO7)
+					GPIOA_BSRR = GPIO2;
+				else
+					GPIOA_BSRR = GPIO2<<16;
+
+			}
+		}
 
 		if (uart_passthrough){
 			usart_disable_tx_interrupt(USART2);
