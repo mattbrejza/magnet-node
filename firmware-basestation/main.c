@@ -372,17 +372,60 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
  * Passthrough interface for the ESP device
  */
 static void cmd_esp_pt(BaseSequentialStream *chp, int argc, char *argv[]) {
-    (void)argc;
-    (void)argv;
+    if(argc != 1)
+    {
+        chprintf(chp, "Usage: pt norm|boot\r\n");
+        return;
+    }
 
-    static const SerialConfig sc = {
-        9600, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
+    static SerialConfig sc = {
+            115200, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
+
+    if(strcmp(argv[0], "boot") == 0)
+    {
+        // Use bootloader mode
+        // Put the ESP in RESET
+        palClearPad(GPIOF, GPIOF_ESP_RST);
+        palClearPad(GPIOF, GPIOF_ESP_CHPD);
+        sc.speed = 115200;
+        // Hold GPIO0 low to enable bootloader mode
+        palClearPad(GPIOA, GPIOA_ESP_GPIO0);
+        chprintf(chp, "ESP entering bootloader...");
+    }
+    else if(strcmp(argv[0], "norm") == 0)
+    {
+        // Normal mode, no need to reset the ESP
+        palClearPad(GPIOF, GPIOF_ESP_RST);
+        palClearPad(GPIOF, GPIOF_ESP_CHPD);
+        sc.speed = 9600;
+        palSetPad(GPIOA, GPIOA_ESP_GPIO0);
+        chprintf(chp, "ESP entering normal mode...");
+    }
+    else
+    {
+        chprintf(chp, "Command not recognised\r\n");
+        return;
+    }
+
+    // Wait for configuration to hold at ESP
+    chThdSleepMilliseconds(100);
+
+    // Configure the UART to talk at whichever baud we chose
     sdStart(&SD1, &sc);
     event_listener_t elSerialData;
     eventflags_t flags;
     chEvtRegisterMask(chnGetEventSource(&SD1), &elSerialData, EVENT_MASK(1));
 
-    chprintf(chp, "ESP Passthrough enabled\r\n");
+    /*
+     * Bring up ESP by pulling RST high
+     */
+    palSetPad(GPIOF, GPIOF_ESP_CHPD);
+    palSetPad(GPIOF, GPIOF_ESP_RST);
+    
+    // Let ESP come up
+    chThdSleepMilliseconds(500);
+
+    chprintf(chp, "done!\r\n");
 
     while(TRUE)
     {
@@ -478,11 +521,6 @@ int main(void) {
     chThdSleepMilliseconds(1500);
     usbStart(serusbcfg.usbp, &usbcfg);
     usbConnectBus(serusbcfg.usbp);
-
-    /*
-     * Bring up ESP by pulling RST high
-     */
-    palSetPad(GPIOF, GPIOF_ESP_RST);
 
     /*
      * Shell manager initialization.
