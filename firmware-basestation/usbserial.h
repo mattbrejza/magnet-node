@@ -15,6 +15,7 @@
 #include "ch.h"
 #include "hal.h"
 
+SerialUSBConfig* get_usb_config(void);
 THD_FUNCTION(UsbSerThread, arg);
 
 #endif /* __USBSERIAL_H__ */

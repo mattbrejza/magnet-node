@@ -316,7 +316,7 @@ static const USBConfig usbcfg = {
 /*
  * Serial over USB driver configuration.
  */
-static const SerialUSBConfig serusbcfg = {
+static SerialUSBConfig serusbcfg = {
     &USBD1,
     USBD1_DATA_REQUEST_EP,
     USBD1_DATA_AVAILABLE_EP,
@@ -464,6 +464,21 @@ static const ShellConfig shell_cfg1 = {
     commands
 };
 
+/**
+ * Get a pointer to the USB configuration held by this module. One can query
+ * this struct to find out whether the USB is active or not, etc.
+ * @returns A pointer to the relevant SerialUSBConfig.
+ */
+SerialUSBConfig* get_usb_config(void)
+{
+    return &serusbcfg;
+}
+
+/**
+ * Main thread for the USB Serial module. Start the USB serial driver and spawn
+ * a shell using it. The shell is killed if the USB connection becomes
+ * inactive, and is spawned again when it becomes active.
+ */
 THD_FUNCTION(UsbSerThread, arg)
 {
     (void)arg;

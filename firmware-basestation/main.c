@@ -35,9 +35,13 @@ static THD_FUNCTION(BlinkerThread, arg) {
 
     (void)arg;
     chRegSetThreadName("blinker");
+
+    // Get a pointer to the usb configuration
+    SerialUSBConfig* serusbcfg = get_usb_config();
+
     while (true) {
-        /*systime_t time = serusbcfg.usbp->state == USB_ACTIVE ? 250 : 500;*/
-        systime_t time = 250;
+        systime_t time = serusbcfg->usbp->state == USB_ACTIVE ? 250 : 500;
+        /*systime_t time = 250;*/
         palClearPad(GPIOC, GPIOC_LED_AUX);
         chThdSleepMilliseconds(time);
         palSetPad(GPIOC, GPIOC_LED_AUX);
