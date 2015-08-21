@@ -469,9 +469,14 @@ static const ShellConfig shell_cfg1 = {
  * this struct to find out whether the USB is active or not, etc.
  * @returns A pointer to the relevant SerialUSBConfig.
  */
-SerialUSBConfig* get_usb_config(void)
+SerialUSBConfig* usb_get_config(void)
 {
     return &serusbcfg;
+}
+
+SerialUSBDriver* usb_get_sdu(void)
+{
+    return &SDU1;
 }
 
 /**

@@ -37,7 +37,7 @@ static THD_FUNCTION(BlinkerThread, arg) {
     chRegSetThreadName("blinker");
 
     // Get a pointer to the usb configuration
-    SerialUSBConfig* serusbcfg = get_usb_config();
+    SerialUSBConfig* serusbcfg = usb_get_config();
 
     while (true) {
         systime_t time = serusbcfg->usbp->state == USB_ACTIVE ? 250 : 500;
