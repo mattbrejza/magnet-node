@@ -474,6 +474,12 @@ SerialUSBConfig* usb_get_config(void)
     return &serusbcfg;
 }
 
+/**
+ * Get a pointer to the SerialUSBDriver in use for the USB serial connection.
+ * This allows other threads to use chprintf etc, such as
+ * chprintf((BaseSequentialStream *)SDU1, "hello world\r\n"
+ * @returns A pointer to a SerialUSBDriver.
+ */
 SerialUSBDriver* usb_get_sdu(void)
 {
     return &SDU1;
