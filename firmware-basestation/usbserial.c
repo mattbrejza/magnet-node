@@ -327,7 +327,7 @@ static SerialUSBConfig serusbcfg = {
 /* Command line related.                                                     */
 /*===========================================================================*/
 
-#define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(2048)
+#define SHELL_WA_SIZE   THD_WORKING_AREA_SIZE(1024)
 
 static void cmd_mem(BaseSequentialStream *chp, int argc, char *argv[]) {
     size_t n, size;
