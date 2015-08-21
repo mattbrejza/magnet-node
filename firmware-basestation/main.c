@@ -24,6 +24,11 @@
 static THD_WORKING_AREA(waBlinker, 128);
 static THD_WORKING_AREA(waUsbSer, 128);
 
+/*
+ * Allow debugging (printf) to the debugging session
+ */
+void initialise_monitor_handles(void);
+
 /*===========================================================================*/
 /* Generic code.                                                             */
 /*===========================================================================*/
@@ -62,6 +67,11 @@ int main(void) {
      */
     halInit();
     chSysInit();
+
+    /*
+     * Semihosting IO stream to allow printf'ing to the debug session
+     */
+    initialise_monitor_handles();
 
     /*
      * Create USB Serial
