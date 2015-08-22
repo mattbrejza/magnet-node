@@ -21,13 +21,17 @@
 
 #include "usbserial.h"
 
+//#define USE_DEBUG_GDB
+
 static THD_WORKING_AREA(waBlinker, 128);
 static THD_WORKING_AREA(waUsbSer, 128);
 
 /*
  * Allow debugging (printf) to the debugging session
  */
+#ifdef USE_DEBUG_GDB
 void initialise_monitor_handles(void);
+#endif
 
 /*===========================================================================*/
 /* Generic code.                                                             */
@@ -51,6 +55,9 @@ static THD_FUNCTION(BlinkerThread, arg) {
         chThdSleepMilliseconds(time);
         palSetPad(GPIOC, GPIOC_LED_AUX);
         chThdSleepMilliseconds(time);
+#ifdef USB_DEBUG_GDB
+        printf("hello world\r\n");
+#endif
     }
 }
 
@@ -71,7 +78,9 @@ int main(void) {
     /*
      * Semihosting IO stream to allow printf'ing to the debug session
      */
+#ifdef USE_DEBUG_GDB
     initialise_monitor_handles();
+#endif
 
     /*
      * Create USB Serial
