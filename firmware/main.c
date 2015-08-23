@@ -5,11 +5,12 @@
 #include "htu21.h"
 
 //                      PRE   PRE   PRE  SYNC  SYNC  LEN
-uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','H','h','h','[','M','B','9',']',0,0};
+uint8_t buf_out[28] = {0xAA, 0xAA, 0xAA, 0x2D, 0xAA,  20, '3', 'a', 'V', 'v', '.','v', 'T', '+', 't','t','.','t','S','h','h','[','M','B','b',']',0,0};
 
 //#define USE_HTU21
+#define USE_LIGHT
 
-const int16_t temp_internal_cal = 690;//695;
+const int16_t temp_internal_cal = 690-8+15;//695;
 
 
 uint8_t sequence = 'a';
@@ -19,7 +20,7 @@ volatile uint16_t humid,adco,volts;
 
 static const uint8_t shift = 6;
 static const uint16_t bitrate = 0x14;
-static const uint32_t frequency = 869537000-3000;  //37000 for MB1,  27000 for MB2
+static const uint32_t frequency = 869537000-16000;  //37000 for MB1,  27000 for MB2
 
 #define CRC_START 0x1D0F
 
@@ -87,7 +88,7 @@ int main(void) {
 		//INSERT 30us setting time wait here
 
 		P1OUT |= (1<<4);    //enable power to sensors
-		ADC10AE0 = (1<<3);
+		ADC10AE0 = (1<<3) | (1<<5);
 
 		while(ADC10CTL1 & ADC10BUSY);
 		adco = ADC10MEM;
@@ -101,13 +102,23 @@ int main(void) {
 		temp = temp - temp_internal_cal;
 		temp = temp * 33;
 		temp = temp >> 3;
-
+#ifdef USE_LIGHT
 		ADC10CTL0 &= ~ENC;
-		ADC10CTL1 = INCH_3;                    //temperature sensor.
+		ADC10CTL1 = INCH_5;                    //wetness sensor.
+		ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
+		while(ADC10CTL1 & ADC10BUSY);
+		humid = ADC10MEM;
+		humid = humid / 2;
+		if (humid > 100)
+			humid = 100;
+#else
+		ADC10CTL0 &= ~ENC;
+		ADC10CTL1 = INCH_3;                    //wetness sensor.
 		ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
 		while(ADC10CTL1 & ADC10BUSY);
 		humid = ADC10MEM;
 		humid = humid / 15;
+#endif
 #endif
 
 
@@ -138,7 +149,7 @@ int main(void) {
 
 		P1OUT |= 0x01;      //enable shutdown
 #ifndef USE_HTU21
-		P1OUT &= ~(1<<4);
+//		P1OUT &= ~(1<<4);
 #endif
 
 		//go to sleep for a while
