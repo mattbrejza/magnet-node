@@ -20,11 +20,13 @@
 #include "chprintf.h"
 
 #include "usbserial.h"
+#include "esp.h"
 
-//#define USE_DEBUG_GDB
+#define USE_DEBUG_GDB
 
 static THD_WORKING_AREA(waBlinker, 128);
 static THD_WORKING_AREA(waUsbSer, 128);
+static THD_WORKING_AREA(waEsp, 128);
 
 /*
  * Allow debugging (printf) to the debugging session
@@ -86,6 +88,11 @@ int main(void) {
      * Create USB Serial
      */
     chThdCreateStatic(waUsbSer, sizeof(waUsbSer), NORMALPRIO, UsbSerThread, NULL);
+
+    /*
+     * Create ESP processing thread
+     */
+    chThdCreateStatic(waEsp, sizeof(waEsp), NORMALPRIO, EspThread, NULL);
 
     /*
      * Creates the blinker thread.
