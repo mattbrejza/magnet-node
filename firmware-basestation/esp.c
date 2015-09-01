@@ -23,20 +23,9 @@
  * These are the messages that are posted to the mailbox
  */
 typedef struct esp_message_t {
-    uint32_t opcode;
-    char* arg1;
-    char* arg2;
+    uint8_t opcode;
+    char buf[64];
 } esp_message_t;
-
-/**
- * A message store for the mailbox
- */
-/*static MemoryPool mailbox_mempool;*/
-
-/**
- * Messages into this thread are posted to this mailbox
- */
-/*static Mailbox esp_mailbox;*/
 
 /**
  * Memory for the ESP buffer
@@ -53,8 +42,16 @@ static msg_t mailbox_buffer[MAILBOX_ITEMS];
  */
 static char mempool_buffer[MAILBOX_ITEMS * sizeof(esp_message_t)];
 
+/**
+ * Messages are stored in this memory pool; pointers to them are posted in the
+ * mailbox.
+ */
 MEMORYPOOL_DECL(mailbox_mempool, MAILBOX_ITEMS * sizeof(esp_message_t), NULL);
 
+/**
+ * Messages into this thread are posted to this mailbox, which holds pointers
+ * to the full messages in the mempool.
+ */
 MAILBOX_DECL(esp_mailbox, &mailbox_buffer, MAILBOX_ITEMS);
 
 /**
@@ -111,17 +108,15 @@ static void esp_process_msg(esp_message_t* msg)
  * Receive a message from another thread. We allocate memory for the
  * esp_message_t and add it to the MailBox so that it will be processed.
  */
-void esp_request(uint32_t opcode, char* arg1, char* arg2)
+void esp_request(uint8_t opcode, char* buf)
 {
     void* msg_in_pool;
     msg_t retval;
 
     // Construct the message (allow NULL pointers here)
-    esp_message_t msg = {
-        .opcode = opcode,
-        .arg1 = arg1,
-        .arg2 = arg2
-    };
+    esp_message_t msg;
+    msg.opcode = opcode;
+    strncpy(msg.buf, buf, 64);
 
     // Allocate memory for it in the pool
     msg_in_pool = chPoolAlloc(&mailbox_mempool);
