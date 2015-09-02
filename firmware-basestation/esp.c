@@ -23,7 +23,7 @@
  * These are the messages that are posted to the mailbox
  */
 typedef struct esp_message_t {
-    uint8_t opcode;
+    uint32_t opcode;
     char buf[64];
 } esp_message_t;
 

@@ -373,6 +373,9 @@ static void cmd_esp_pt(BaseSequentialStream *chp, int argc, char *argv[]) {
         return;
     }
 
+    // Kill the driver so the ESP thread is no longer using it
+    sdStop(&SD1);
+
     static SerialConfig sc = {
             115200, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
 
