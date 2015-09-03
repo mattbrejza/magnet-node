@@ -246,94 +246,6 @@ static uint8_t ringbuf_write_byte(ringbuffer_t *rb, char *c)
 }
 
 /**
- * Write n bytes to a RingBuffer.
- *
- * This is done via a fast memcpy operation and as such, there is logic in this
- * function to transparently handle the copy even if we're wrapping over the
- * boundary of the ring buffer.
- *
- * @param buf A pointer to the ring buffer we want to write to
- * @param data A pointer to the data to be written
- * @param n The number of bytes to be written to the ring buffer
- * @returns 0 for success, non-0 for failure
- */
-static uint8_t ringbuf_write(ringbuffer_t *buf, char* data, uint16_t n)
-{
-    uint16_t rem;
-
-    // Check we're not writing more than the buffer can hold
-    if(n >= buf->len)
-        return 1;
-
-    // Make sure there's enough free space in the buffer for our data
-    if(rb_getfree_m(buf) < n)
-    {
-        buf->overflow = 1;
-        return 1;
-    }
-
-    // We can do a single memcpy as long as we don't wrap around the buffer
-    if(buf->head + n < buf->len)
-    {
-        // We won't wrap, we can quickly memcpy
-        memcpy(buf->buffer + buf->head, data, n);
-        buf->head = (buf->head + n) & buf->mask;
-    } else {
-        // We're going to wrap, copy in 2 blocks
-        // Copy the first (SD_BUF_LEN - buf->head) bytes
-        rem = buf->len - buf->head;
-        memcpy(buf->buffer + buf->head, data, rem);
-        buf->head = (buf->head + rem) & buf->mask;
-        // Copy the remaining bytes
-        memcpy(buf->buffer + buf->head, data + rem, n - rem);
-        buf->head = (buf->head + (n-rem)) & buf->mask;
-    }
-    return 0;
-}
-
-/**
- * Read n bytes from a ring buffer.
- *
- * This is done via a fast memcpy operation and as such, there is logic in this
- * function to transparently handle the copy even if we're wrapping over the
- * boundary of the ring buffer.
- *
- * @param buf A pointer to the ring buffer we want to write to
- * @param read_buffer Copy data into this array
- * @param n The number of bytes to be read from the ring buffer
- * @returns 0 for success, non-0 for failure
- */
-static uint8_t ringbuf_read(ringbuffer_t *buf, char* read_buffer, uint16_t n)
-{
-    uint16_t rem;
-
-    // We can't read more data than the buffer holds!
-    if(n >= buf->len)
-        return 1;
-
-    // We can't read more bytes than the buffer currently contains
-    if(n > rb_getused_m(buf))
-        n = rb_getused_m(buf);
-
-    if(buf->tail + n < buf->len)
-    {
-        // We won't wrap, we can quickly memcpy
-        memcpy(read_buffer, buf->buffer + buf->tail, n);
-        buf->tail = (buf->tail + n) & buf->mask;
-    } else {
-        // We're going to wrap, copy in 2 blocks
-        // Copy the first (SD_BUF_LEN - buf->head) bytes
-        rem = buf->len - buf->tail;
-        memcpy(read_buffer, buf->buffer + buf->tail, rem);
-        buf->tail = (buf->tail + rem) & buf->mask;
-        // Copy the remaining bytes
-        memcpy(read_buffer + rem, buf->buffer + buf->tail, n - rem);
-        buf->tail = (buf->tail + (n-rem)) & buf->mask;
-    }
-    return 0;
-}
-
-/**
  * Main processing thread. We wait for commands to do things, either uploading
  * packets, or processing a control command (e.g. connect to wifi access
  * point).
@@ -375,11 +287,18 @@ THD_FUNCTION(EspThread, arg)
                 if(newbyte == '\n')
                     esp_state_machine();
             }
+            else
+            {
+                // Only sleep this thread if the buffer is empty
+                chThdSleepMilliseconds(1);
+            }
         } 
         else
         {
             // We've finished with the last transaction, wait for a new 
             // message in our mailbox and begin to process it
+            // If there is no message, this will stall and the RTOS will
+            // suspend this thread and do something else.
             mailbox_res = chMBFetch(&esp_mailbox, (msg_t *)&msg, TIME_INFINITE);
 
             // Check that we got something, otherwise pass
@@ -389,8 +308,6 @@ THD_FUNCTION(EspThread, arg)
             esp_process_msg((esp_message_t *)msg);
         }
 
-        // Sleep
-        chThdSleepMilliseconds(100);
     }
 }
 
