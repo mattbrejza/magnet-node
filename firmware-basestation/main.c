@@ -83,12 +83,16 @@ int main(void) {
     /*
      * Create ESP processing thread
      */
-    chThdCreateStatic(waEsp, sizeof(waEsp), NORMALPRIO, EspThread, NULL);
+    chThdCreateStatic(waEsp, sizeof(waEsp), NORMALPRIO+1, EspThread, NULL);
 
     /*
      * Creates the blinker thread.
      */
     chThdCreateStatic(waBlinker, sizeof(waBlinker), NORMALPRIO, BlinkerThread, NULL);
+    
+    // FIXME
+    chThdSleepMilliseconds(3000);
+    esp_request(ESP_MSG_VERSION, NULL);
 
     /*
      * Normal main() thread activity, in this demo it does nothing except
