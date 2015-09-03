@@ -92,7 +92,7 @@ int main(void) {
     
     // FIXME
     chThdSleepMilliseconds(3000);
-    esp_request(ESP_MSG_VERSION, NULL);
+    esp_request(ESP_MSG_AT, NULL);
 
     /*
      * Normal main() thread activity, in this demo it does nothing except

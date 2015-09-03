@@ -99,6 +99,7 @@ MAILBOX_DECL(esp_mailbox, &mailbox_buffer, MAILBOX_ITEMS);
 uint32_t esp_state;
 
 const char ESP_STRING_VERSION[] = "AT+GMR\r\n";
+const char ESP_STRING_AT[] = "AT\r\n";
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -106,14 +107,19 @@ const char ESP_STRING_VERSION[] = "AT+GMR\r\n";
  */
 static void esp_init(void)
 {
+    // Set up memory pool for ESP messages
+    chPoolObjectInit(&mailbox_mempool, sizeof(esp_message_t), NULL);
+    chPoolLoadArray(&mailbox_mempool, (void *)mempool_buffer, MAILBOX_ITEMS);
+
+    // Set up mailbox
+    chMBObjectInit(&esp_mailbox, (msg_t *)mailbox_buffer, MAILBOX_ITEMS);
+
     // Power off and go into reset
     palClearPad(GPIOF, GPIOF_ESP_RST);
     palClearPad(GPIOF, GPIOF_ESP_CHPD);
 
-    // Configure UART
-    static const SerialConfig sc = {
-        9600, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
-    sdStart(&SD1, &sc);
+    // GPIO0 should be high for normal mode (not bootloader)
+    palSetPad(GPIOA, GPIOA_ESP_GPIO0);
 
     // Wait a little
     chThdSleepMilliseconds(100);
@@ -122,15 +128,16 @@ static void esp_init(void)
     palSetPad(GPIOF, GPIOF_ESP_CHPD);
     palSetPad(GPIOF, GPIOF_ESP_RST);
 
-    // Set up mailbox
-    chMBObjectInit(&esp_mailbox, (msg_t *)mailbox_buffer, MAILBOX_ITEMS);
-
-    // Set up memory pool for ESP messages
-    chPoolObjectInit(&mailbox_mempool, sizeof(esp_message_t), NULL);
-    chPoolLoadArray(&mailbox_mempool, (void *)mempool_buffer, MAILBOX_ITEMS);
+    // Configure UART
+    static const SerialConfig sc = {
+        9600, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
+    sdStart(&SD1, &sc);
 
     // Wait a little
-    chThdSleepMilliseconds(100);
+    chThdSleepMilliseconds(1000);
+
+    // Flush all data from the ESP after reset
+    while(sdGetTimeout(&SD1, TIME_IMMEDIATE) != Q_TIMEOUT);
 }
 
 /**
@@ -138,17 +145,19 @@ static void esp_init(void)
  */
 static void esp_process_msg(esp_message_t* msg)
 {
-    size_t ntxed;
-
     switch(msg->opcode)
     {
         case ESP_MSG_VERSION:
             // Set the state
             esp_state = ESP_MSG_VERSION;
             // Request the firmware version of the ESP
-            ntxed = sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_VERSION, 
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_VERSION, 
                     strlen(ESP_STRING_VERSION), MS2ST(100));
             break;
+        case ESP_MSG_AT:
+            esp_state = ESP_MSG_AT;
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_AT, 
+                    strlen(ESP_STRING_AT), MS2ST(100));
         default:
             break;
    }

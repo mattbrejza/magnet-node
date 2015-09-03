@@ -15,7 +15,8 @@
 /**
  * Operation codes
  */
-#define ESP_MSG_VERSION 0x01
+#define ESP_MSG_VERSION             0x01
+#define ESP_MSG_AT                  0x02
 
 void esp_request(uint32_t opcode, char* buf);
 THD_FUNCTION(EspThread, arg);
