@@ -290,7 +290,7 @@ THD_FUNCTION(EspThread, arg)
             else
             {
                 // Only sleep this thread if the buffer is empty
-                chThdSleepMilliseconds(1);
+                chThdSleepMilliseconds(10);
             }
         } 
         else
