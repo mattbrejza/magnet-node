@@ -9,6 +9,7 @@
  * @{
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "ch.h"
@@ -38,6 +39,16 @@ typedef struct esp_message_t {
     uint32_t opcode;
     char buf[64];
 } esp_message_t;
+
+/**
+ * The current configuration and status of the ESP are stored here
+ */
+typedef struct esp_status_t {
+    uint8_t ipstatus;
+    uint8_t linkstatus;
+} esp_status_t;
+
+static esp_status_t esp_status;
 
 /**
  * Memory for the ESP buffer
@@ -75,10 +86,13 @@ const char ESP_STRING_RST[] = "AT+RST\r\n";
 const char ESP_STRING_CWMODE[] = "AT+CWMODE=1\r\n";
 const char ESP_STRING_IP[] = "AT+CIFSR\r\n";
 const char ESP_STRING_JOIN[] = "AT+CWJAP=";
-const char ESP_STRING_RN[] = "\r\n";
+const char ESP_STRING_CRLF[] = "\r\n";
 const char ESP_STRING_STATUS[] = "AT+CIPSTATUS\r\n";
 const char ESP_STRING_SEND[] = "AT+CIPSEND=";
 const char ESP_STRING_START[] = "AT+CIPSTART=";
+const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
+const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
+const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -124,6 +138,8 @@ static void esp_init(void)
  */
 static void esp_process_msg(esp_message_t* msg)
 {
+    uint8_t packetlen;
+
     esp_state = msg->opcode;
     switch(esp_state)
     {
@@ -153,8 +169,8 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(ESP_STRING_JOIN), MS2ST(100));
             sdWriteTimeout(&SD1, (const uint8_t *)msg->buf,
                     strlen(msg->buf), MS2ST(100));
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RN,
-                    strlen(ESP_STRING_RN), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
+                    strlen(ESP_STRING_CRLF), MS2ST(100));
             break;
         case ESP_MSG_STATUS:
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_STATUS,
@@ -162,9 +178,9 @@ static void esp_process_msg(esp_message_t* msg)
             break;
         case ESP_MSG_SEND:
             // Send the (up to) 64 byte message in the payload to the server
-            uint8_t len = strlen(msg->buf);
+            packetlen = strlen(msg->buf);
             char s[6];
-            sprintf(s, "%d\r\n", len);
+            sprintf(s, "%d\r\n", packetlen);
             // Send CIPSEND=xx where xx is the number of bytes
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_SEND,
                     strlen(ESP_STRING_SEND), MS2ST(100));
@@ -172,8 +188,8 @@ static void esp_process_msg(esp_message_t* msg)
             sdWriteTimeout(&SD1, (const uint8_t *)s,
                     strlen(s), MS2ST(100));
             // And an \r\n to terminate this line
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RN,
-                    strlen(ESP_STRING_RN), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
+                    strlen(ESP_STRING_CRLF), MS2ST(100));
             // Now begins the HTTP req
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_START,
                     strlen(ESP_UPLOAD_START), MS2ST(100));
@@ -192,8 +208,8 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(ESP_STRING_START), MS2ST(100));
             sdWriteTimeout(&SD1, (const uint8_t *)UKHASNET_IP,
                     strlen(UKHASNET_IP), MS2ST(100));
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RN,
-                    strlen(ESP_STRING_RN), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
+                    strlen(ESP_STRING_CRLF), MS2ST(100));
             break;
         default:
             esp_state = 0;
@@ -337,6 +353,15 @@ static void esp_state_machine(void)
                 user_print_buf[len] = '\0';
                 chprintf((BaseSequentialStream*)SDU1, user_print_buf);
                 chprintf((BaseSequentialStream*)SDU1, "\r\n");
+                // Update status struct with integer status value
+                esp_status.ipstatus = (uint8_t)(user_print_buf[len-3] - 48);
+                esp_state = 0;
+            }
+            break;
+        case ESP_MSG_START:
+            if(strstr(esp_buffer, ESP_RESP_LINKED))
+            {
+                esp_status.linkstatus = ESP_LINKED;
                 esp_state = 0;
             }
             break;
@@ -369,6 +394,10 @@ THD_FUNCTION(EspThread, arg)
 
     // Initialise start of buffer
     esp_buf_ptr = esp_buffer;
+
+    // Set initial esp status
+    esp_status.linkstatus = ESP_NOTLINKED;
+    esp_status.ipstatus = ESP_NOSTATUS;
 
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();

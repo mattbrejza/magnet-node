@@ -498,6 +498,10 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     {
         esp_request(ESP_MSG_STATUS, NULL);
     } /* argv[0] is status */
+    else if(strcmp(argv[0], "testsend") == 0)
+    {
+        esp_request(ESP_MSG_START, NULL);
+    }
     else
     {
         chprintf(chp, "Command not recognised\r\n");
