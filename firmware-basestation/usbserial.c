@@ -371,7 +371,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     if(argc < 1)
     {
-        chprintf(chp, "Usage: esp [pt norm|boot] [ver]\r\n");
+        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [join <ssid> <pass>]\r\n");
         return;
     }
 
@@ -474,6 +474,12 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     } /* argv[0] is ip */
     else if(strcmp(argv[0], "join") == 0)
     {
+        if(argc != 3)
+        {
+            chprintf(chp, "Usage: esp join <ssid> <pass>\r\n");
+            return;
+        }
+        // TODO: Check length of args !>64 bytes
         char tbuf[64];
         char *tbuf_ptr = tbuf;
         *tbuf_ptr++ = '"';
