@@ -22,6 +22,8 @@
 #define ESP_MSG_IP                  0x05
 #define ESP_MSG_JOIN                0x06
 #define ESP_MSG_STATUS              0x07
+#define ESP_MSG_SEND                0x08
+#define ESP_MSG_START               0x09
 
 /**
  * ESP responses
@@ -30,6 +32,10 @@
 #define ESP_RESP_READY              "Ready"
 #define ESP_RESP_NOCHANGE           "no change\r\n"
 #define ESP_RESP_FAIL               "FAIL\r\n"
+
+const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
+const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
+const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
 
 void esp_request(uint32_t opcode, char* buf);
 THD_FUNCTION(EspThread, arg);

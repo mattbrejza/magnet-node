@@ -77,6 +77,8 @@ const char ESP_STRING_IP[] = "AT+CIFSR\r\n";
 const char ESP_STRING_JOIN[] = "AT+CWJAP=";
 const char ESP_STRING_RN[] = "\r\n";
 const char ESP_STRING_STATUS[] = "AT+CIPSTATUS\r\n";
+const char ESP_STRING_SEND[] = "AT+CIPSEND=";
+const char ESP_STRING_START[] = "AT+CIPSTART=";
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -157,6 +159,41 @@ static void esp_process_msg(esp_message_t* msg)
         case ESP_MSG_STATUS:
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_STATUS,
                     strlen(ESP_STRING_STATUS), MS2ST(100));
+            break;
+        case ESP_MSG_SEND:
+            // Send the (up to) 64 byte message in the payload to the server
+            uint8_t len = strlen(msg->buf);
+            char s[6];
+            sprintf(s, "%d\r\n", len);
+            // Send CIPSEND=xx where xx is the number of bytes
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_SEND,
+                    strlen(ESP_STRING_SEND), MS2ST(100));
+            // Now the number of bytes
+            sdWriteTimeout(&SD1, (const uint8_t *)s,
+                    strlen(s), MS2ST(100));
+            // And an \r\n to terminate this line
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RN,
+                    strlen(ESP_STRING_RN), MS2ST(100));
+            // Now begins the HTTP req
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_START,
+                    strlen(ESP_UPLOAD_START), MS2ST(100));
+            // Insert content length
+            sdWriteTimeout(&SD1, (const uint8_t *)s,
+                    strlen(s), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_END,
+                    strlen(ESP_UPLOAD_END), MS2ST(100));
+            // Now the content
+            sdWriteTimeout(&SD1, (const uint8_t *)msg->buf,
+                    strlen(msg->buf), MS2ST(100));
+            break;
+        case ESP_MSG_START:
+            // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_START,
+                    strlen(ESP_STRING_START), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)UKHASNET_IP,
+                    strlen(UKHASNET_IP), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RN,
+                    strlen(ESP_STRING_RN), MS2ST(100));
             break;
         default:
             esp_state = 0;
