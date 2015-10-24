@@ -543,8 +543,10 @@ int main(void)
 				if (add_node_to_packet((char*)buff,len,sizeof(buff)/sizeof(char))>0){
 					add_to_telem_buffer((char*)buff,rssi,sizeof(buff)/sizeof(char));
 					int8_t b_rssi;
-					get_telem_buffer_peek((char*)buff,&b_rssi,sizeof(buff)/sizeof(char));
-					user_print_sentence((char*)buff);
+					if (wifi_connected==0){
+						get_telem_buffer_peek((char*)buff,&b_rssi,sizeof(buff)/sizeof(char));
+						user_print_sentence((char*)buff);
+					}
 				}
 			}
 		}
