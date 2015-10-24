@@ -19,6 +19,8 @@
 #include "shell.h"
 #include "chprintf.h"
 
+#include "esp.h"
+
 /*===========================================================================*/
 /* USB related stuff.                                                        */
 /*===========================================================================*/
@@ -366,99 +368,111 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 /**
  * Passthrough interface for the ESP device
  */
-static void cmd_esp_pt(BaseSequentialStream *chp, int argc, char *argv[]) {
-    if(argc != 1)
+static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
+    if(argc < 1)
     {
-        chprintf(chp, "Usage: pt norm|boot\r\n");
+        chprintf(chp, "Usage: esp [pt norm|boot] [ver]\r\n");
         return;
     }
 
-    // Kill the driver so the ESP thread is no longer using it
-    sdStop(&SD1);
-
-    static SerialConfig sc = {
-            115200, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
-
-    if(strcmp(argv[0], "boot") == 0)
+    if(strcmp(argv[0], "pt") == 0)
     {
-        // Use bootloader mode
-        // Put the ESP in RESET
-        palClearPad(GPIOF, GPIOF_ESP_RST);
-        palClearPad(GPIOF, GPIOF_ESP_CHPD);
-        sc.speed = 115200;
-        // Hold GPIO0 low to enable bootloader mode
-        palClearPad(GPIOA, GPIOA_ESP_GPIO0);
-        chprintf(chp, "ESP entering bootloader...");
-    }
-    else if(strcmp(argv[0], "norm") == 0)
+        // Kill the driver so the ESP thread is no longer using it
+        sdStop(&SD1);
+
+        static SerialConfig sc = {
+                115200, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
+
+        if(strcmp(argv[1], "boot") == 0)
+        {
+            // Use bootloader mode
+            // Put the ESP in RESET
+            palClearPad(GPIOF, GPIOF_ESP_RST);
+            palClearPad(GPIOF, GPIOF_ESP_CHPD);
+            sc.speed = 115200;
+            // Hold GPIO0 low to enable bootloader mode
+            palClearPad(GPIOA, GPIOA_ESP_GPIO0);
+            chprintf(chp, "ESP entering bootloader...");
+        }
+        else if(strcmp(argv[1], "norm") == 0)
+        {
+            // Normal mode, no need to reset the ESP
+            palClearPad(GPIOF, GPIOF_ESP_RST);
+            palClearPad(GPIOF, GPIOF_ESP_CHPD);
+            sc.speed = 9600;
+            palSetPad(GPIOA, GPIOA_ESP_GPIO0);
+            chprintf(chp, "ESP entering normal mode...");
+        }
+        else
+        {
+            chprintf(chp, "Command not recognised\r\n");
+            return;
+        }
+        
+        // Wait for configuration to hold at ESP
+        chThdSleepMilliseconds(100);
+
+        // Configure the UART to talk at whichever baud we chose
+        sdStart(&SD1, &sc);
+        event_listener_t elSerialData;
+        eventflags_t flags;
+        chEvtRegisterMask(chnGetEventSource(&SD1), &elSerialData, EVENT_MASK(1));
+
+        /*
+         * Bring up ESP by pulling RST high
+         */
+        palSetPad(GPIOF, GPIOF_ESP_CHPD);
+        palSetPad(GPIOF, GPIOF_ESP_RST);
+        
+        // Let ESP come up
+        chThdSleepMilliseconds(500);
+
+        chprintf(chp, "done!\r\n");
+
+        while(TRUE)
+        {
+            // Wait for data ESP -> PC
+            chEvtWaitOneTimeout(EVENT_MASK(1), MS2ST(1));
+            flags = chEvtGetAndClearFlags(&elSerialData);
+            if( flags & CHN_INPUT_AVAILABLE )
+            {
+                msg_t charbuf;
+                do
+                {
+                    charbuf = chnGetTimeout(&SD1, TIME_IMMEDIATE);
+                    if( charbuf != STM_TIMEOUT )
+                        chSequentialStreamPut(chp, charbuf);
+                }
+                while( charbuf != STM_TIMEOUT );
+            }
+            // Wait for data PC -> ESP
+            msg_t usbbuf;
+            do {
+                usbbuf = chnGetTimeout(&SDU1, TIME_IMMEDIATE);
+                if( usbbuf != STM_TIMEOUT )
+                {
+                    // There is some data, forward it to the ESP
+                    chSequentialStreamPut(&SD1, usbbuf);
+                }
+            }
+            while( usbbuf != STM_TIMEOUT );
+        }
+    } /* argv[0] is pt */
+    else if(strcmp(argv[0], "ver") == 0)
     {
-        // Normal mode, no need to reset the ESP
-        palClearPad(GPIOF, GPIOF_ESP_RST);
-        palClearPad(GPIOF, GPIOF_ESP_CHPD);
-        sc.speed = 9600;
-        palSetPad(GPIOA, GPIOA_ESP_GPIO0);
-        chprintf(chp, "ESP entering normal mode...");
-    }
+        /* Send request for ESP to print its version */
+        esp_request(ESP_MSG_VERSION, NULL);
+    } /* argv[0] is ver */
     else
     {
         chprintf(chp, "Command not recognised\r\n");
-        return;
-    }
-
-    // Wait for configuration to hold at ESP
-    chThdSleepMilliseconds(100);
-
-    // Configure the UART to talk at whichever baud we chose
-    sdStart(&SD1, &sc);
-    event_listener_t elSerialData;
-    eventflags_t flags;
-    chEvtRegisterMask(chnGetEventSource(&SD1), &elSerialData, EVENT_MASK(1));
-
-    /*
-     * Bring up ESP by pulling RST high
-     */
-    palSetPad(GPIOF, GPIOF_ESP_CHPD);
-    palSetPad(GPIOF, GPIOF_ESP_RST);
-    
-    // Let ESP come up
-    chThdSleepMilliseconds(500);
-
-    chprintf(chp, "done!\r\n");
-
-    while(TRUE)
-    {
-        // Wait for data ESP -> PC
-        chEvtWaitOneTimeout(EVENT_MASK(1), MS2ST(1));
-        flags = chEvtGetAndClearFlags(&elSerialData);
-        if( flags & CHN_INPUT_AVAILABLE )
-        {
-            msg_t charbuf;
-            do
-            {
-                charbuf = chnGetTimeout(&SD1, TIME_IMMEDIATE);
-                if( charbuf != STM_TIMEOUT )
-                    chSequentialStreamPut(chp, charbuf);
-            }
-            while( charbuf != STM_TIMEOUT );
-        }
-        // Wait for data PC -> ESP
-        msg_t usbbuf;
-        do {
-            usbbuf = chnGetTimeout(&SDU1, TIME_IMMEDIATE);
-            if( usbbuf != STM_TIMEOUT )
-            {
-                // There is some data, forward it to the ESP
-                chSequentialStreamPut(&SD1, usbbuf);
-            }
-        }
-        while( usbbuf != STM_TIMEOUT );
     }
 }
 
 static const ShellCommand commands[] = {
     {"mem", cmd_mem},
     {"threads", cmd_threads},
-    {"pt", cmd_esp_pt},
+    {"esp", cmd_esp},
     {NULL, NULL}
 };
 

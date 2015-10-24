@@ -90,9 +90,8 @@ int main(void) {
      */
     chThdCreateStatic(waBlinker, sizeof(waBlinker), NORMALPRIO, BlinkerThread, NULL);
     
-    // FIXME
+    // FIXME this wait is for the ESP to wake properly
     chThdSleepMilliseconds(3000);
-    esp_request(ESP_MSG_VERSION, NULL);
 
     /*
      * Normal main() thread activity, in this demo it does nothing except
