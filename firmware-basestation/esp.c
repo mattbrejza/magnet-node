@@ -74,6 +74,9 @@ const char ESP_STRING_AT[] = "AT\r\n";
 const char ESP_STRING_RST[] = "AT+RST\r\n";
 const char ESP_STRING_CWMODE[] = "AT+CWMODE=1\r\n";
 const char ESP_STRING_IP[] = "AT+CIFSR\r\n";
+const char ESP_STRING_JOIN[] = "AT+CWJAP=";
+const char ESP_STRING_RN[] = "\r\n";
+const char ESP_STRING_STATUS[] = "AT+CIPSTATUS\r\n";
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -142,6 +145,18 @@ static void esp_process_msg(esp_message_t* msg)
         case ESP_MSG_IP:
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_IP,
                     strlen(ESP_STRING_IP), MS2ST(100));
+            break;
+        case ESP_MSG_JOIN:
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_JOIN,
+                    strlen(ESP_STRING_JOIN), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)msg->buf,
+                    strlen(msg->buf), MS2ST(100));
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RN,
+                    strlen(ESP_STRING_RN), MS2ST(100));
+            break;
+        case ESP_MSG_STATUS:
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_STATUS,
+                    strlen(ESP_STRING_STATUS), MS2ST(100));
             break;
         default:
             esp_state = 0;
@@ -252,6 +267,32 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
                 // Find first \n
+                bufptr = strstr(esp_buffer, "\n");
+                bufptr2 = strstr(bufptr+1, "\n");
+                len = bufptr2 - bufptr;
+                strncpy(user_print_buf, bufptr+1, len);
+                user_print_buf[len] = '\0';
+                chprintf((BaseSequentialStream*)SDU1, user_print_buf);
+                chprintf((BaseSequentialStream*)SDU1, "\r\n");
+                esp_state = 0;
+            }
+            break;
+        case ESP_MSG_JOIN:
+            if(strstr(esp_buffer, ESP_RESP_OK))
+            {
+                chprintf((BaseSequentialStream*)SDU1, "AP join success\r\n");
+                esp_state = 0;
+            }
+            else if(strstr(esp_buffer, ESP_RESP_FAIL))
+            {
+                chprintf((BaseSequentialStream*)SDU1, "AP join failure\r\n");
+                esp_state = 0;
+            }
+            break;
+        case ESP_MSG_STATUS:
+            if(strstr(esp_buffer, ESP_RESP_OK))
+            {
+                // Print first line of response from ESP only
                 bufptr = strstr(esp_buffer, "\n");
                 bufptr2 = strstr(bufptr+1, "\n");
                 len = bufptr2 - bufptr;

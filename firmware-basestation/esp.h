@@ -20,6 +20,8 @@
 #define ESP_MSG_RST                 0x03
 #define ESP_MSG_CWMODE              0x04
 #define ESP_MSG_IP                  0x05
+#define ESP_MSG_JOIN                0x06
+#define ESP_MSG_STATUS              0x07
 
 /**
  * ESP responses
@@ -27,6 +29,7 @@
 #define ESP_RESP_OK                 "OK\r\n"
 #define ESP_RESP_READY              "Ready"
 #define ESP_RESP_NOCHANGE           "no change\r\n"
+#define ESP_RESP_FAIL               "FAIL\r\n"
 
 void esp_request(uint32_t opcode, char* buf);
 THD_FUNCTION(EspThread, arg);

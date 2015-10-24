@@ -472,6 +472,26 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     {
         esp_request(ESP_MSG_IP, NULL);
     } /* argv[0] is ip */
+    else if(strcmp(argv[0], "join") == 0)
+    {
+        char tbuf[64];
+        char *tbuf_ptr = tbuf;
+        *tbuf_ptr++ = '"';
+        strcpy(tbuf_ptr, argv[1]);
+        tbuf_ptr += strlen(tbuf_ptr);
+        *tbuf_ptr++ = '"';
+        *tbuf_ptr++ = ',';
+        *tbuf_ptr++ = '"';
+        strcpy(tbuf_ptr, argv[2]);
+        tbuf_ptr += strlen(tbuf_ptr);
+        *tbuf_ptr++ = '"';
+        *tbuf_ptr++ = '\0';
+        esp_request(ESP_MSG_JOIN, tbuf);
+    } /* argv[0] is join */
+    else if(strcmp(argv[0], "status") == 0)
+    {
+        esp_request(ESP_MSG_STATUS, NULL);
+    } /* argv[0] is status */
     else
     {
         chprintf(chp, "Command not recognised\r\n");
