@@ -94,6 +94,7 @@ const char ESP_STRING_SEND[] = "AT+CIPSEND=";
 const char ESP_STRING_START[] = "AT+CIPSTART=";
 const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
 const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
+const char ESP_UPLOAD_CONTENT[] = "origin=JJJ&data=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
 
 /**
@@ -140,7 +141,7 @@ static void esp_init(void)
  */
 static void esp_process_msg(esp_message_t* msg)
 {
-    uint8_t packetlen;
+    uint16_t reqlen, contentlen;
     char s[6];
 
     esp_state = msg->opcode;
@@ -181,27 +182,33 @@ static void esp_process_msg(esp_message_t* msg)
             break;
         case ESP_MSG_SEND:
             // Send the (up to) 64 byte message in the payload to the server
-            packetlen = strlen(packet_temp);
-            chsnprintf(s, 6, "%u", packetlen);
+            contentlen = strlen(packet_temp);
+            reqlen = strlen(ESP_UPLOAD_START) + strlen(ESP_UPLOAD_END) 
+                + strlen(ESP_UPLOAD_CONTENT) + contentlen + 2; // FIXME
             // Send CIPSEND=xx where xx is the number of bytes
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_SEND,
-                    strlen(ESP_STRING_SEND), MS2ST(100));
+                    strlen(ESP_STRING_SEND), MS2ST(500));
             // Now the number of bytes
+            chsnprintf(s, 6, "%u", reqlen);
             sdWriteTimeout(&SD1, (const uint8_t *)s,
                     strlen(s), MS2ST(100));
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
-                    strlen(ESP_STRING_CRLF), MS2ST(100));
+                    strlen(ESP_STRING_CRLF), MS2ST(500));
+            chThdSleepMilliseconds(10);
             // Now begins the HTTP req
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_START,
-                    strlen(ESP_UPLOAD_START), MS2ST(100));
+                    strlen(ESP_UPLOAD_START), MS2ST(500));
             // Insert content length
+            chsnprintf(s, 6, "%u", contentlen + strlen(ESP_UPLOAD_CONTENT));
             sdWriteTimeout(&SD1, (const uint8_t *)s,
-                    strlen(s), MS2ST(100));
+                    strlen(s), MS2ST(500));
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_END,
-                    strlen(ESP_UPLOAD_END), MS2ST(100));
+                    strlen(ESP_UPLOAD_END), MS2ST(500));
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_CONTENT,
+                    strlen(ESP_UPLOAD_CONTENT), MS2ST(500));
             // Now the content
             sdWriteTimeout(&SD1, (const uint8_t *)packet_temp,
-                    strlen(msg->buf), MS2ST(100));
+                    strlen(packet_temp), MS2ST(500));
             break;
         case ESP_MSG_START:
             // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
@@ -212,6 +219,7 @@ static void esp_process_msg(esp_message_t* msg)
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
                     strlen(ESP_STRING_CRLF), MS2ST(100));
             strncpy(packet_temp, msg->buf, 64);
+            chThdSleepMilliseconds(10);
             break;
         default:
             esp_state = 0;
