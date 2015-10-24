@@ -53,6 +53,7 @@ static uint16_t get_telem_buffer_peek(char* out, int8_t *rssi, uint16_t max_len)
 static uint16_t get_telem_buffer_pop(void);
 static uint8_t telem_avaliable(void);
 static uint8_t upload_string_handle_response(uint8_t res, char* response);
+void user_print_sentence(char* string);
 
 static char ssid[33] = {};   //one longer than needed for '\0' terminator
 static char pwd[65] = {};
@@ -64,6 +65,7 @@ static uint8_t debug_mode = 0;
 
 static uint8_t error_count = 0;
 
+static uint8_t wifi_connected = 0;
 
 static char telem_buff[512];
 static uint16_t telem_ptr_w = 0;
@@ -301,10 +303,14 @@ static void process_user_buffer(void)
 			user_send_non_blocking_str(arg1);
 			user_send_non_blocking_str("\r\n");
 			uint8_t res = esp_connect_ap(ssid, pwd);
-			if (res)
+			if (res){
 				user_send_non_blocking_str("Failed\r\n>");
-			else
+				wifi_connected = 0;
+			}
+			else{
 				user_send_non_blocking_str("Success\r\n>");
+				wifi_connected = 1;
+			}
 			flash_unlock();
 			erase_settings_page();
 			write_settings_flash(node_name, strlen(node_name), ssid, len1, pwd, len2);
@@ -500,10 +506,12 @@ int main(void)
 			user_send_non_blocking_str(ssid);
 			gpio_set(LED_AUX_PORT,LED_AUX_PIN);
 			user_send_non_blocking_str("\r\n>");
+			wifi_connected = 0;
 		}
 		else{
 			user_send_non_blocking_str("Wifi connected\r\n>");
 			gpio_set(LED_WIFI_PORT,LED_WIFI_PIN);
+			wifi_connected = 1;
 		}
 	}
 	else{
@@ -522,7 +530,7 @@ int main(void)
 
 		gpio_clear(LED_868_PORT,LED_868_PIN);
 
-		if (user_cr_flag)
+		if ((user_cr_flag>0) && (esp_busy() == 0))
 			process_user_buffer();
 
 		if (flag_rx){
@@ -534,6 +542,9 @@ int main(void)
 				gpio_set(LED_868_PORT,LED_868_PIN);
 				if (add_node_to_packet((char*)buff,len,sizeof(buff)/sizeof(char))>0){
 					add_to_telem_buffer((char*)buff,rssi,sizeof(buff)/sizeof(char));
+					int8_t b_rssi;
+					get_telem_buffer_peek((char*)buff,&b_rssi,sizeof(buff)/sizeof(char));
+					user_print_sentence((char*)buff);
 				}
 			}
 		}
@@ -545,8 +556,14 @@ int main(void)
 			//upload_string((char*)buff,respbuff,respbuff_len,0);
 		}
 
+
+		//if not connected, connect
+		if ((telem_avaliable()>0) && (esp_busy() == 0) && (user_cr_flag == 0) && (wifi_connected==0) && (ssid_valid>0)){
+			esp_connect_ap_non_blocking(ssid,pwd);
+		}
+
 		//if stuff waiting to be uploaded
-		if ((telem_avaliable()>0) & (esp_busy() == 0)){
+		if ((telem_avaliable()>0) && (esp_busy() == 0) && (user_cr_flag == 0) && (wifi_connected>0)){
 			int8_t b_rssi;
 			get_telem_buffer_peek((char*)buff,&b_rssi,sizeof(buff)/sizeof(char));
 			res = upload_string((char*)buff,respbuff,respbuff_len,b_rssi);
@@ -565,7 +582,22 @@ int main(void)
 
 		}
 
-		if (esp_busy()){
+		if (esp_busy_cmd()){
+			res = esp_service_cmd_task();
+			if (res){
+				if (res == ESP_CONNECT_DONE_OK){
+					user_send_non_blocking_str("Connected to AP\r\n");
+					wifi_connected = 1;
+				}
+				else
+				{
+					user_send_non_blocking_str("Could not connect to AP\r\n");
+					wifi_connected = 0;
+				}
+			}
+		}
+
+		if (esp_busy_upload()){
 			res = esp_service_upload_task();
 			if (res){
 				if(res == ESP_UPLOAD_DONE_OK){
@@ -608,7 +640,6 @@ int main(void)
 			gpio_mode_setup(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO7);
 
 
-			uint8_t r;
 			while(1)
 			{
 				IWDG_KR = 0xAAAA;
@@ -650,6 +681,7 @@ int main(void)
 			}
 		}
 	}
+	/*
 {
 	_delay_ms(1000);
 	uint16_t hum = convert_humidity(htu21_read_sensor(HTU21_READ_HUMID));
@@ -682,7 +714,7 @@ _delay_ms(1000);
 		}
 		USART1_ICR = (1<<3);
 		USART2_ICR = (1<<3);
-	}
+	} */
 }
 
 void _delay_ms(const uint32_t delay)
@@ -802,11 +834,7 @@ static uint8_t telem_avaliable(void)
 		return 1;
 }
 
-//0 - success, >=1 - error
-uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_t rssi)
-{
-
-	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
+void user_print_sentence(char* string){
 	char* p = string;
 	uint8_t i = strlen(string);
 
@@ -821,6 +849,18 @@ uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_
 	p = user_input_buff;
 	while(i--)
 			user_send_non_blocking_char(*p++);
+}
+
+//0 - success, >=1 - error
+uint8_t upload_string(char* string, char* response, uint16_t response_len, int8_t rssi)
+{
+
+	gpio_clear(LED_WIFI_PORT,LED_WIFI_PIN);
+	uint8_t i = strlen(string);
+
+
+	//handle uart ui stuff
+	user_print_sentence(string);
 
 	if (rssi < 0)
 		i = snprintf(txbuff,128,"origin=%s&data=%s&rssi=%i",node_name,string,rssi);
@@ -864,7 +904,7 @@ static uint8_t upload_string_handle_response(uint8_t res, char* response)
 			last_error = -15;
 		}
 		if (res != FAIL_NOT_200)
-			esp_connect_ap(ssid,pwd);//WIFI_AP,WIFI_PASS); //try connecting again
+			esp_connect_ap_non_blocking(ssid,pwd);//WIFI_AP,WIFI_PASS); //try connecting again
 	}
 	else{
 		error_count = 0;
