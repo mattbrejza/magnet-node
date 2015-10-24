@@ -468,6 +468,10 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
         /* Ask to reset ESP */
         esp_request(ESP_MSG_RST, NULL);
     } /* argv[0] is reset */
+    else if(strcmp(argv[0], "ip") == 0)
+    {
+        esp_request(ESP_MSG_IP, NULL);
+    } /* argv[0] is ip */
     else
     {
         chprintf(chp, "Command not recognised\r\n");

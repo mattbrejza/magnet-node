@@ -72,6 +72,8 @@ uint32_t esp_state;
 const char ESP_STRING_VERSION[] = "AT+GMR\r\n";
 const char ESP_STRING_AT[] = "AT\r\n";
 const char ESP_STRING_RST[] = "AT+RST\r\n";
+const char ESP_STRING_CWMODE[] = "AT+CWMODE=1\r\n";
+const char ESP_STRING_IP[] = "AT+CIFSR\r\n";
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -121,21 +123,25 @@ static void esp_process_msg(esp_message_t* msg)
     switch(esp_state)
     {
         case ESP_MSG_VERSION:
-            // Set the state
-            esp_state = ESP_MSG_VERSION;
             // Request the firmware version of the ESP
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_VERSION, 
                     strlen(ESP_STRING_VERSION), MS2ST(100));
             break;
         case ESP_MSG_AT:
-            esp_state = ESP_MSG_AT;
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_AT, 
                     strlen(ESP_STRING_AT), MS2ST(100));
             break;
         case ESP_MSG_RST:
-            esp_state = ESP_MSG_RST;
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RST, 
                     strlen(ESP_STRING_RST), MS2ST(100));
+            break;
+        case ESP_MSG_CWMODE:
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CWMODE,
+                    strlen(ESP_STRING_CWMODE), MS2ST(100));
+            break;
+        case ESP_MSG_IP:
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_IP,
+                    strlen(ESP_STRING_IP), MS2ST(100));
             break;
         default:
             esp_state = 0;
@@ -231,12 +237,33 @@ static void esp_state_machine(void)
         case ESP_MSG_RST:
             if(strstr(esp_buffer, ESP_RESP_READY))
             {
-                chprintf((BaseSequentialStream*)SDU1, "ESP reset\r\n");
+                chprintf((BaseSequentialStream*)SDU1, "ESP reset successful\r\n");
+                esp_state = 0;
+            }
+            break;
+        case ESP_MSG_CWMODE:
+            if(strstr(esp_buffer, ESP_RESP_OK)
+                    || strstr(esp_buffer, ESP_RESP_NOCHANGE))
+            {
+                esp_state = 0;
+            }
+            break;
+        case ESP_MSG_IP:
+            if(strstr(esp_buffer, ESP_RESP_OK))
+            {
+                // Find first \n
+                bufptr = strstr(esp_buffer, "\n");
+                bufptr2 = strstr(bufptr+1, "\n");
+                len = bufptr2 - bufptr;
+                strncpy(user_print_buf, bufptr+1, len);
+                user_print_buf[len] = '\0';
+                chprintf((BaseSequentialStream*)SDU1, user_print_buf);
+                chprintf((BaseSequentialStream*)SDU1, "\r\n");
                 esp_state = 0;
             }
             break;
         default:
-            chprintf((BaseSequentialStream*)SDU1, "Fatal!\r\n");
+            chprintf((BaseSequentialStream*)SDU1, "Fatal, esp state not reset!\r\n");
             return;
     }
 }
@@ -302,6 +329,7 @@ THD_FUNCTION(EspThread, arg)
             if(mailbox_res != MSG_OK || msg == 0) continue;
 
             // Discard everything in buffer
+            memset(esp_buffer, 0, ESP_BUFFER_SIZE);
             esp_buf_ptr = esp_buffer;
 
             // Process this message
