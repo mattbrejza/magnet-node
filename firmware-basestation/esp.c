@@ -12,9 +12,11 @@
 #include <string.h>
 
 #include "ch.h"
+#include "chprintf.h"
 #include "hal.h"
 
 #include "esp.h"
+#include "usbserial.h"
 
 /**
  * Size of the ring buffer into which we put incoming data from the ESP
@@ -26,6 +28,8 @@
  * Number of items in the ESP thread processing mailbox
  */
 #define MAILBOX_ITEMS 8
+
+static SerialUSBDriver *SDU1;
 
 /**
  * These are the messages that are posted to the mailbox
@@ -193,6 +197,8 @@ static size_t esp_receive_byte(char* buf)
  */
 static void esp_state_machine(void)
 {
+    // Wait for OK
+    //if(strstr(esp_buffer, ESP_RESP_OK
 }
 
 /**
@@ -218,6 +224,9 @@ THD_FUNCTION(EspThread, arg)
 
     // Initialise start of buffer
     esp_buf_ptr = esp_buffer;
+
+    // Get pointer to SDU so we cna print to shell
+    SDU1 = usb_get_sdu();
     
     // Loop forever for this thread
     while(TRUE)
@@ -230,9 +239,9 @@ THD_FUNCTION(EspThread, arg)
             {
                 // Move into the buffer
                 *esp_buf_ptr++ = newbyte;
-                // Deal with the state machine if this is an end-of-line
-                if(newbyte == '\n')
-                    esp_state_machine();
+                // Deal with the state machine 
+                esp_state_machine();
+                chprintf((BaseSequentialStream*)SDU1, "hello from esp_thd\r\n");
             }
             else
             {
