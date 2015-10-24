@@ -463,6 +463,11 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
         /* Send request for ESP to print its version */
         esp_request(ESP_MSG_VERSION, NULL);
     } /* argv[0] is ver */
+    else if(strcmp(argv[0], "reset") == 0)
+    {
+        /* Ask to reset ESP */
+        esp_request(ESP_MSG_RST, NULL);
+    } /* argv[0] is reset */
     else
     {
         chprintf(chp, "Command not recognised\r\n");

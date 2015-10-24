@@ -22,7 +22,7 @@
  * Size of the ring buffer into which we put incoming data from the ESP
  * that is waiting to be processed
  */
-#define ESP_BUFFER_SIZE 64
+#define ESP_BUFFER_SIZE 256
 
 /**
  * Number of items in the ESP thread processing mailbox
@@ -71,6 +71,7 @@ uint32_t esp_state;
 
 const char ESP_STRING_VERSION[] = "AT+GMR\r\n";
 const char ESP_STRING_AT[] = "AT\r\n";
+const char ESP_STRING_RST[] = "AT+RST\r\n";
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -116,7 +117,8 @@ static void esp_init(void)
  */
 static void esp_process_msg(esp_message_t* msg)
 {
-    switch(msg->opcode)
+    esp_state = msg->opcode;
+    switch(esp_state)
     {
         case ESP_MSG_VERSION:
             // Set the state
@@ -129,7 +131,14 @@ static void esp_process_msg(esp_message_t* msg)
             esp_state = ESP_MSG_AT;
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_AT, 
                     strlen(ESP_STRING_AT), MS2ST(100));
+            break;
+        case ESP_MSG_RST:
+            esp_state = ESP_MSG_RST;
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RST, 
+                    strlen(ESP_STRING_RST), MS2ST(100));
+            break;
         default:
+            esp_state = 0;
             break;
    }
 
@@ -201,18 +210,34 @@ static void esp_state_machine(void)
     uint8_t len;
     char user_print_buf[32];
 
-    // Wait for OK
-    if(strstr(esp_buffer, ESP_RESP_OK))
+    /* What we do here depends on what we're waiting for */
+    switch(esp_state)
     {
-        // Find first \n
-        bufptr = strstr(esp_buffer, "\n");
-        bufptr2 = strstr(bufptr+1, "\n");
-        len = bufptr2 - bufptr;
-        strncpy(user_print_buf, bufptr+1, len);
-        user_print_buf[len] = '\0';
-        chprintf((BaseSequentialStream*)SDU1, user_print_buf);
-        chprintf((BaseSequentialStream*)SDU1, "\r\n");
-        esp_state = 0;
+        case ESP_MSG_VERSION:
+            // Wait for OK
+            if(strstr(esp_buffer, ESP_RESP_OK))
+            {
+                // Find first \n
+                bufptr = strstr(esp_buffer, "\n");
+                bufptr2 = strstr(bufptr+1, "\n");
+                len = bufptr2 - bufptr;
+                strncpy(user_print_buf, bufptr+1, len);
+                user_print_buf[len] = '\0';
+                chprintf((BaseSequentialStream*)SDU1, user_print_buf);
+                chprintf((BaseSequentialStream*)SDU1, "\r\n");
+                esp_state = 0;
+            }
+            break;
+        case ESP_MSG_RST:
+            if(strstr(esp_buffer, ESP_RESP_READY))
+            {
+                chprintf((BaseSequentialStream*)SDU1, "ESP reset\r\n");
+                esp_state = 0;
+            }
+            break;
+        default:
+            chprintf((BaseSequentialStream*)SDU1, "Fatal!\r\n");
+            return;
     }
 }
 
@@ -253,9 +278,11 @@ THD_FUNCTION(EspThread, arg)
             if( esp_receive_byte(&newbyte) > 0 )
             {
                 // Move into the buffer
+                // FIXME: Buffer overrun possible here
                 *esp_buf_ptr++ = newbyte;
-                // Deal with the state machine 
-                esp_state_machine();
+                // Deal with the state machine at the end of each line
+                if(newbyte == '\n')
+                    esp_state_machine();
             }
             else
             {
@@ -273,6 +300,9 @@ THD_FUNCTION(EspThread, arg)
 
             // Check that we got something, otherwise pass
             if(mailbox_res != MSG_OK || msg == 0) continue;
+
+            // Discard everything in buffer
+            esp_buf_ptr = esp_buffer;
 
             // Process this message
             esp_process_msg((esp_message_t *)msg);
