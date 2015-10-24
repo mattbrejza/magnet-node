@@ -9,7 +9,6 @@
  * @{
  */
 
-#include <stdio.h>
 #include <string.h>
 
 #include "ch.h"
@@ -142,6 +141,7 @@ static void esp_init(void)
 static void esp_process_msg(esp_message_t* msg)
 {
     uint8_t packetlen;
+    char s[6];
 
     esp_state = msg->opcode;
     switch(esp_state)
@@ -182,15 +182,13 @@ static void esp_process_msg(esp_message_t* msg)
         case ESP_MSG_SEND:
             // Send the (up to) 64 byte message in the payload to the server
             packetlen = strlen(packet_temp);
-            char s[6];
-            sprintf(s, "%d\r\n", packetlen);
+            chsnprintf(s, 6, "%u", packetlen);
             // Send CIPSEND=xx where xx is the number of bytes
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_SEND,
                     strlen(ESP_STRING_SEND), MS2ST(100));
             // Now the number of bytes
             sdWriteTimeout(&SD1, (const uint8_t *)s,
                     strlen(s), MS2ST(100));
-            // And an \r\n to terminate this line
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
                     strlen(ESP_STRING_CRLF), MS2ST(100));
             // Now begins the HTTP req
@@ -366,6 +364,7 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_LINKED))
             {
                 esp_status.linkstatus = ESP_LINKED;
+                esp_request(ESP_MSG_SEND, packet_temp);
                 esp_state = 0;
             }
             break;
@@ -412,6 +411,9 @@ THD_FUNCTION(EspThread, arg)
 
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
+    
+    // FIXME
+    strcpy(packet_temp, "2aT19.0[JJJ]");
     
     // Loop forever for this thread
     while(TRUE)

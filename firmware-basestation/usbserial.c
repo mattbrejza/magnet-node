@@ -500,7 +500,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     } /* argv[0] is status */
     else if(strcmp(argv[0], "testsend") == 0)
     {
-        esp_request(ESP_MSG_START, NULL);
+        esp_request(ESP_MSG_SEND, "2aT19.0[JJJ]");
     }
     else
     {
