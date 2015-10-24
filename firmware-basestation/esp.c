@@ -50,6 +50,9 @@ typedef struct esp_status_t {
 
 static esp_status_t esp_status;
 
+/** Temporary storage for packets */
+char packet_temp[64];
+
 /**
  * Memory for the ESP buffer
  */
@@ -178,7 +181,7 @@ static void esp_process_msg(esp_message_t* msg)
             break;
         case ESP_MSG_SEND:
             // Send the (up to) 64 byte message in the payload to the server
-            packetlen = strlen(msg->buf);
+            packetlen = strlen(packet_temp);
             char s[6];
             sprintf(s, "%d\r\n", packetlen);
             // Send CIPSEND=xx where xx is the number of bytes
@@ -199,7 +202,7 @@ static void esp_process_msg(esp_message_t* msg)
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_END,
                     strlen(ESP_UPLOAD_END), MS2ST(100));
             // Now the content
-            sdWriteTimeout(&SD1, (const uint8_t *)msg->buf,
+            sdWriteTimeout(&SD1, (const uint8_t *)packet_temp,
                     strlen(msg->buf), MS2ST(100));
             break;
         case ESP_MSG_START:
@@ -210,6 +213,7 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(UKHASNET_IP), MS2ST(100));
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
                     strlen(ESP_STRING_CRLF), MS2ST(100));
+            strncpy(packet_temp, msg->buf, 64);
             break;
         default:
             esp_state = 0;
@@ -362,6 +366,13 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_LINKED))
             {
                 esp_status.linkstatus = ESP_LINKED;
+                esp_state = 0;
+            }
+            break;
+        case ESP_MSG_SEND:
+            if(strstr(esp_buffer, ESP_RESP_OK))
+            {
+                esp_status.linkstatus = ESP_NOTLINKED;
                 esp_state = 0;
             }
             break;
