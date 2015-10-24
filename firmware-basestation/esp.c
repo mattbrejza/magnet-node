@@ -20,40 +20,12 @@
  * Size of the ring buffer into which we put incoming data from the ESP
  * that is waiting to be processed
  */
-#define ESP_RINGBUF_SIZE 64
+#define ESP_BUFFER_SIZE 64
 
 /**
  * Number of items in the ESP thread processing mailbox
  */
 #define MAILBOX_ITEMS 8
-
-/**
- * Quick facility to get the used value of a ring buffer
- * @param b A pointer to the buffer which we wish to query
- */
-#define rb_getused_m(b) ((b->tail==b->head) ? 0:(b->head - b->tail + b->len) % b->len)
-
-/**
- * Quick facility to get the free value of a ring buffer
- * @param b A pointer to the buffer which we wish to query
- */
-#define rb_getfree_m(b) ((b->tail==b->head) ? b->len : (b->tail - b->head + b->len) % b->len)
-
-/**
- * Reset a ring buffer to its original empty state
- * @param b A pointer to the buffer which we wish to query
- */
-#define rb_reset_m(b) do {b->tail = b->head = 0} while (0)
-
-/**
- * A ring buffer
- */
-typedef struct ringbuffer_t
-{
-        char* buffer;
-        uint16_t head, tail, len, mask;
-        uint8_t overflow;
-} ringbuffer_t;
 
 /**
  * These are the messages that are posted to the mailbox
@@ -66,13 +38,8 @@ typedef struct esp_message_t {
 /**
  * Memory for the ESP buffer
  */
-static char esp_ringbuf[ESP_RINGBUF_SIZE];
-
-/**
- * A ring buffer that is used to keep track of unprocessed data from
- * the ESP
- */
-static ringbuffer_t esp_ringbuffer;
+static char esp_buffer[ESP_BUFFER_SIZE];
+static char *esp_buf_ptr;
 
 /**
  * Memory for the mailbox (msg_ts are queued in here)
@@ -229,23 +196,6 @@ static void esp_state_machine(void)
 }
 
 /**
- * Write a single byte to a ringbuffer.
- * @param rb The buffer into which to write
- * @param c The byte to write into the buffer
- * @returns 0 for success, non-0 for failure
- */
-static uint8_t ringbuf_write_byte(ringbuffer_t *rb, char *c)
-{
-    // Write to head
-    *(rb->buffer + rb->head) = *c;
-
-    // Increment and wrap head if necessary
-    rb->head = (rb->head + 1) & rb->mask;
-
-    return 0;
-}
-
-/**
  * Main processing thread. We wait for commands to do things, either uploading
  * packets, or processing a control command (e.g. connect to wifi access
  * point).
@@ -266,12 +216,9 @@ THD_FUNCTION(EspThread, arg)
     // Byte that we get from ESP
     char newbyte;
 
-    // Ring buffer initialisation
-    esp_ringbuffer.buffer = esp_ringbuf;
-    esp_ringbuffer.head = esp_ringbuffer.tail = 0;
-    esp_ringbuffer.len = ESP_RINGBUF_SIZE;
-    esp_ringbuffer.mask = esp_ringbuffer.len - 1;
-
+    // Initialise start of buffer
+    esp_buf_ptr = esp_buffer;
+    
     // Loop forever for this thread
     while(TRUE)
     {
@@ -281,8 +228,8 @@ THD_FUNCTION(EspThread, arg)
             // Get a new byte if there is one
             if( esp_receive_byte(&newbyte) > 0 )
             {
-                // Move into the ring buffer
-                ringbuf_write_byte(&esp_ringbuffer, &newbyte);
+                // Move into the buffer
+                *esp_buf_ptr++ = newbyte;
                 // Deal with the state machine if this is an end-of-line
                 if(newbyte == '\n')
                     esp_state_machine();
