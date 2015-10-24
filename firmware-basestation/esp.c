@@ -197,8 +197,23 @@ static size_t esp_receive_byte(char* buf)
  */
 static void esp_state_machine(void)
 {
+    char *bufptr, *bufptr2;
+    uint8_t len;
+    char user_print_buf[32];
+
     // Wait for OK
-    //if(strstr(esp_buffer, ESP_RESP_OK
+    if(strstr(esp_buffer, ESP_RESP_OK))
+    {
+        // Find first \n
+        bufptr = strstr(esp_buffer, "\n");
+        bufptr2 = strstr(bufptr+1, "\n");
+        len = bufptr2 - bufptr;
+        strncpy(user_print_buf, bufptr+1, len);
+        user_print_buf[len] = '\0';
+        chprintf((BaseSequentialStream*)SDU1, user_print_buf);
+        chprintf((BaseSequentialStream*)SDU1, "\r\n");
+        esp_state = 0;
+    }
 }
 
 /**
@@ -241,7 +256,6 @@ THD_FUNCTION(EspThread, arg)
                 *esp_buf_ptr++ = newbyte;
                 // Deal with the state machine 
                 esp_state_machine();
-                chprintf((BaseSequentialStream*)SDU1, "hello from esp_thd\r\n");
             }
             else
             {
