@@ -315,13 +315,13 @@
 #define VAL_GPIOB_MODER             (PIN_MODE_INPUT(GPIOB_PIN0) |           \
                                      PIN_MODE_INPUT(GPIOB_PIN1) |           \
                                      PIN_MODE_INPUT(GPIOB_PIN2) |           \
-                                     PIN_MODE_ALTERNATE(GPIO_RFM_SCK) |           \
-                                     PIN_MODE_ALTERNATE(GPIO_RFM_MISO) |           \
-                                     PIN_MODE_ALTNERATE(GPIO_RFM_MOSI) |           \
+                                     PIN_MODE_ALTERNATE(GPIOB_RFM_SCK) |     \
+                                     PIN_MODE_ALTERNATE(GPIOB_RFM_MISO) |    \
+                                     PIN_MODE_ALTERNATE(GPIOB_RFM_MOSI) |    \
                                      PIN_MODE_ALTERNATE(GPIOB_ESP_TX) |     \
                                      PIN_MODE_ALTERNATE(GPIOB_ESP_RX) |     \
                                      PIN_MODE_INPUT(GPIOB_PIN8) |           \
-                                     PIN_MODE_OUTPUT(GPIO_RFM_SS) |           \
+                                     PIN_MODE_OUTPUT(GPIOB_RFM_SS) |         \
                                      PIN_MODE_INPUT(GPIOB_PIN10) |          \
                                      PIN_MODE_INPUT(GPIOB_PIN11) |          \
                                      PIN_MODE_INPUT(GPIOB_PIN12) |          \
@@ -331,13 +331,13 @@
 #define VAL_GPIOB_OTYPER            (PIN_OTYPE_PUSHPULL(GPIOB_PIN0) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOB_PIN1) |       \
                                      PIN_OTYPE_PUSHPULL(GPIOB_PIN2) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIO_RFM_SCK) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIO_RFM_MISO) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIO_RFM_MOSI) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIOB_ESP_TX) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIOB_ESP_RX) |       \
+                                     PIN_OTYPE_PUSHPULL(GPIOB_RFM_SCK) |     \
+                                     PIN_OTYPE_PUSHPULL(GPIOB_RFM_MISO) |    \
+                                     PIN_OTYPE_PUSHPULL(GPIOB_RFM_MOSI) |    \
+                                     PIN_OTYPE_PUSHPULL(GPIOB_ESP_TX) |     \
+                                     PIN_OTYPE_PUSHPULL(GPIOB_ESP_RX) |     \
                                      PIN_OTYPE_PUSHPULL(GPIOB_PIN8) |       \
-                                     PIN_OTYPE_PUSHPULL(GPIO_RFM_SS) |       \
+                                     PIN_OTYPE_PUSHPULL(GPIOB_RFM_SS) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOB_PIN10) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOB_PIN11) |      \
                                      PIN_OTYPE_PUSHPULL(GPIOB_PIN12) |      \
@@ -347,13 +347,13 @@
 #define VAL_GPIOB_OSPEEDR           (PIN_OSPEED_2M(GPIOB_PIN0) |            \
                                      PIN_OSPEED_2M(GPIOB_PIN1) |            \
                                      PIN_OSPEED_40M(GPIOB_PIN2) |           \
-                                     PIN_OSPEED_40M(GPIO_RFM_SCK) |           \
-                                     PIN_OSPEED_40M(GPIO_RFM_MISO) |           \
-                                     PIN_OSPEED_2M(GPIO_RFM_MOSI) |            \
-                                     PIN_OSPEED_2M(GPIOB_ESP_TX) |            \
-                                     PIN_OSPEED_2M(GPIOB_ESP_RX) |            \
+                                     PIN_OSPEED_40M(GPIOB_RFM_SCK) |         \
+                                     PIN_OSPEED_40M(GPIOB_RFM_MISO) |        \
+                                     PIN_OSPEED_2M(GPIOB_RFM_MOSI) |         \
+                                     PIN_OSPEED_2M(GPIOB_ESP_TX) |          \
+                                     PIN_OSPEED_2M(GPIOB_ESP_RX) |          \
                                      PIN_OSPEED_2M(GPIOB_PIN8) |            \
-                                     PIN_OSPEED_2M(GPIO_RFM_SS) |            \
+                                     PIN_OSPEED_2M(GPIOB_RFM_SS) |           \
                                      PIN_OSPEED_2M(GPIOB_PIN10) |           \
                                      PIN_OSPEED_2M(GPIOB_PIN11) |           \
                                      PIN_OSPEED_2M(GPIOB_PIN12) |           \
@@ -363,13 +363,13 @@
 #define VAL_GPIOB_PUPDR             (PIN_PUPDR_PULLUP(GPIOB_PIN0) |         \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN1) |         \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN2) |         \
-                                     PIN_PUPDR_PULLUP(GPIO_RFM_SCK) |         \
-                                     PIN_PUPDR_PULLUP(GPIO_RFM_MISO) |         \
-                                     PIN_PUPDR_PULLUP(GPIO_RFM_MOSI) |         \
-                                     PIN_PUPDR_FLOATING(GPIOB_ESP_TX) |         \
-                                     PIN_PUPDR_FLOATING(GPIOB_ESP_RX) |         \
+                                     PIN_PUPDR_PULLUP(GPIOB_RFM_SCK) |       \
+                                     PIN_PUPDR_PULLUP(GPIOB_RFM_MISO) |      \
+                                     PIN_PUPDR_PULLUP(GPIOB_RFM_MOSI) |      \
+                                     PIN_PUPDR_FLOATING(GPIOB_ESP_TX) |     \
+                                     PIN_PUPDR_FLOATING(GPIOB_ESP_RX) |     \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN8) |         \
-                                     PIN_PUPDR_PULLUP(GPIO_RFM_SS) |         \
+                                     PIN_PUPDR_PULLUP(GPIOB_RFM_SS) |        \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN10) |        \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN11) |        \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN12) |        \
@@ -379,13 +379,13 @@
 #define VAL_GPIOB_ODR               (PIN_ODR_HIGH(GPIOB_PIN0) |             \
                                      PIN_ODR_HIGH(GPIOB_PIN1) |             \
                                      PIN_ODR_HIGH(GPIOB_PIN2) |             \
-                                     PIN_ODR_HIGH(GPIO_RFM_SCK) |             \
-                                     PIN_ODR_HIGH(GPIO_RFM_MISO) |             \
-                                     PIN_ODR_HIGH(GPIO_RFM_MOSI) |             \
-                                     PIN_ODR_HIGH(GPIOB_ESP_TX) |             \
-                                     PIN_ODR_HIGH(GPIOB_ESP_RX) |             \
+                                     PIN_ODR_HIGH(GPIOB_RFM_SCK) |           \
+                                     PIN_ODR_HIGH(GPIOB_RFM_MISO) |          \
+                                     PIN_ODR_HIGH(GPIOB_RFM_MOSI) |          \
+                                     PIN_ODR_HIGH(GPIOB_ESP_TX) |           \
+                                     PIN_ODR_HIGH(GPIOB_ESP_RX) |           \
                                      PIN_ODR_HIGH(GPIOB_PIN8) |             \
-                                     PIN_ODR_HIGH(GPIO_RFM_SS) |             \
+                                     PIN_ODR_HIGH(GPIOB_RFM_SS) |            \
                                      PIN_ODR_HIGH(GPIOB_PIN10) |            \
                                      PIN_ODR_HIGH(GPIOB_PIN11) |            \
                                      PIN_ODR_HIGH(GPIOB_PIN12) |            \
@@ -395,13 +395,13 @@
 #define VAL_GPIOB_AFRL              (PIN_AFIO_AF(GPIOB_PIN0, 0) |           \
                                      PIN_AFIO_AF(GPIOB_PIN1, 0) |           \
                                      PIN_AFIO_AF(GPIOB_PIN2, 0) |           \
-                                     PIN_AFIO_AF(GPIO_RFM_SCK, 0) |           \
-                                     PIN_AFIO_AF(GPIO_RFM_MISO, 0) |           \
-                                     PIN_AFIO_AF(GPIO_RFM_MOSI, 0) |           \
-                                     PIN_AFIO_AF(GPIOB_ESP_TX, 0) |           \
+                                     PIN_AFIO_AF(GPIOB_RFM_SCK, 0) |         \
+                                     PIN_AFIO_AF(GPIOB_RFM_MISO, 0) |        \
+                                     PIN_AFIO_AF(GPIOB_RFM_MOSI, 0) |        \
+                                     PIN_AFIO_AF(GPIOB_ESP_TX, 0) |         \
                                      PIN_AFIO_AF(GPIOB_ESP_RX, 0))
 #define VAL_GPIOB_AFRH              (PIN_AFIO_AF(GPIOB_PIN8, 0) |           \
-                                     PIN_AFIO_AF(GPIO_RFM_SS, 0) |           \
+                                     PIN_AFIO_AF(GPIOB_RFM_SS, 0) |          \
                                      PIN_AFIO_AF(GPIOB_PIN10, 0) |          \
                                      PIN_AFIO_AF(GPIOB_PIN11, 0) |          \
                                      PIN_AFIO_AF(GPIOB_PIN12, 0) |          \
