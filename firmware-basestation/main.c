@@ -21,10 +21,12 @@
 
 #include "usbserial.h"
 #include "esp.h"
+#include "rfm.h"
 
 static THD_WORKING_AREA(waBlinker, 128);
 static THD_WORKING_AREA(waUsbSer, 256);
 static THD_WORKING_AREA(waEsp, 256);
+static THD_WORKING_AREA(waRFM, 128);
 
 /*
  * Allow debugging (printf) to the debugging session
@@ -84,6 +86,11 @@ int main(void) {
      * Create ESP processing thread
      */
     chThdCreateStatic(waEsp, sizeof(waEsp), NORMALPRIO+1, EspThread, NULL);
+
+    /*
+     * Create RFM69 thread
+     */
+    chThdCreateStatic(waRFM, sizeof(waRFM), NORMALPRIO, RfmThread, NULL);
 
     /*
      * Creates the blinker thread.
