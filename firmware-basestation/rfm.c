@@ -38,7 +38,7 @@ static rfm_reg_t _mode;
  * Send a byte to the RFM
  * @param data The byte to send
  */
-static void rfm_send_byte(const rfm_reg_t data)
+static void spi_send_byte(const rfm_reg_t data)
 {
     spiSelect(&RFM_SPID);
     spiSend(&RFM_SPID, 1, (void *)&data);
@@ -49,7 +49,7 @@ static void rfm_send_byte(const rfm_reg_t data)
  * Receive a byte from the RFM
  * @returns The byte received
  */
-static void rfm_receive_byte(rfm_reg_t *data)
+static void spi_receive_byte(rfm_reg_t *data)
 {
     spiSelect(&RFM_SPID);
     spiReceive(&RFM_SPID, 1, (void *)data);
@@ -61,7 +61,7 @@ static void rfm_receive_byte(rfm_reg_t *data)
  * @param data A pointer to the data to send
  * @param len The number of bytes to send
  */
-static void rfm_send_bulk(rfm_reg_t *data, const uint8_t len)
+static void spi_send_bulk(rfm_reg_t *data, const uint8_t len)
 {
     spiSelect(&RFM_SPID);
     spiSend(&RFM_SPID, len, (void *)data);
@@ -73,7 +73,7 @@ static void rfm_send_bulk(rfm_reg_t *data, const uint8_t len)
  * @param data A pointer into which the data will be read
  * @param len The number of bytes to read
  */
-static void rfm_receive_bulk(rfm_reg_t *data, const uint8_t len)
+static void spi_receive_bulk(rfm_reg_t *data, const uint8_t len)
 {
     spiSelect(&RFM_SPID);
     spiReceive(&RFM_SPID, len, (void *)data);
@@ -83,13 +83,13 @@ static void rfm_receive_bulk(rfm_reg_t *data, const uint8_t len)
 /**
  * Read a register from the RFM
  * @param reg The register to read
- * @param result The rfm_reg_t into which the register value is put
+ * @param res The rfm_reg_t into which the register value is put
  */
-static rfm_status_t rfm_read_register(const rfm_reg_t reg, rfm_reg_t *res)
+static rfm_status_t _rfm_read_register(const rfm_reg_t reg, rfm_reg_t *res)
 {
     // Send the register then read the result back
-    rfm_send_byte(reg);
-    rfm_receive_byte(res);
+    spi_send_byte(reg);
+    spi_receive_byte(res);
     return RFM_OK;
 }
 
@@ -98,17 +98,43 @@ static rfm_status_t rfm_read_register(const rfm_reg_t reg, rfm_reg_t *res)
  * @param reg The register to be written on the RFM
  * @param val The value to set the register 'reg' to
  */
-static rfm_status_t rfm_write_register(const rfm_reg_t reg, const rfm_reg_t val)
+static rfm_status_t _rfm_write_register(const rfm_reg_t reg, const rfm_reg_t val)
 {
     // Set the WRITE bit to tell the RFM that we're writing (not reading)
-    rfm_send_byte(reg | RFM69_SPI_WRITE_MASK);
-    rfm_send_byte(val);
+    spi_send_byte(reg | RFM69_SPI_WRITE_MASK);
+    spi_send_byte(val);
     return RFM_OK;
 }
 
 /**
  * Bulk read data from the RFM
- * @param @
+ * @param reg The register to begin the read form
+ * @param res A pointer to an rfm_reg_t buffer into which we will read
+ * @param len The number of bytes to read
+ */
+static rfm_status_t _rfm_read_burst(const rfm_reg_t reg, rfm_reg_t *res,
+        uint8_t len)
+{
+    // Send beginning address
+    spi_send_byte(reg);
+    // Read in bulk
+    spi_receive_bulk(res, len);
+    return RFM_OK;
+}
+
+/**
+ * Bulk write data to the RFM
+ * @param reg The first address which we will write to
+ * @param data A pointer to an rfm_reg_t buffer which contains the data
+ * @param len The number of bytes to write
+ */
+static rfm_status_t _rfm_write_burst(const rfm_reg_t reg, rfm_reg_t *data,
+        uint8_t len)
+{
+    spi_send_byte(reg | RFM69_SPI_WRITE_MASK);
+    spi_send_bulk(data, len);
+    return RFM_OK;
+}
 
 THD_FUNCTION(RfmThread, arg)
 {
