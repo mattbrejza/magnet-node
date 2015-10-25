@@ -158,9 +158,14 @@ THD_FUNCTION(RfmThread, arg)
     (void)arg;
     uint8_t i;
     rfm_reg_t res;
-
+    
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
+    chThdSleepMilliseconds(3000);
+    chprintf((BaseSequentialStream *)SDU1, "Entering RFM setup\r\n");
+
+    // Set up the SPI driver
+    spiStart(&RFM_SPID, &rfm_spicfg);
 
     /* Set up device */
     for (i = 0; CONFIG[i][0] != 255; i++)
@@ -175,9 +180,8 @@ THD_FUNCTION(RfmThread, arg)
     _rfm_read_register(RFM69_REG_10_VERSION, &res);
     if(!res)
         chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
-
-    // Set up the SPI driver
-    spiStart(&RFM_SPID, &rfm_spicfg);
+    else
+        chprintf((BaseSequentialStream *)SDU1, "RFM init OK\r\n");
 
     // Regularly poll the RFM for new packets, and if we get them,
     // post them to the ESP mailbox for uploading

@@ -97,14 +97,12 @@ int main(void) {
      */
     chThdCreateStatic(waBlinker, sizeof(waBlinker), NORMALPRIO, BlinkerThread, NULL);
     
-    // FIXME this wait is for the ESP to wake properly
-    chThdSleepMilliseconds(3000);
-
     /*
      * Normal main() thread activity, in this demo it does nothing except
      * sleeping in a loop and check the button state.
      */
-    while (true) {
+    while(true)
+    {
         chThdSleepMilliseconds(1000);
     }
 }
