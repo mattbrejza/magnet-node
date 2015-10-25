@@ -394,9 +394,6 @@ THD_FUNCTION(EspThread, arg)
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
     
-    // FIXME
-    strcpy(packet_temp, "2aT19.0[JJJ]");
-    
     // Loop forever for this thread
     while(TRUE)
     {
