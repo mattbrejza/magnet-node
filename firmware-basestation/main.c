@@ -88,6 +88,7 @@ static volatile uint8_t user_out_buff_r = 0;
 static volatile uint8_t user_out_buff_w = 0;
 
 static uint8_t uart_passthrough = 0;
+static uint8_t recently_tried = 0;
 
 #define min(a,b) \
 ({ __typeof__ (a) _a = (a); \
@@ -543,6 +544,7 @@ int main(void)
 				if (add_node_to_packet((char*)buff,len,sizeof(buff)/sizeof(char))>0){
 					add_to_telem_buffer((char*)buff,rssi,sizeof(buff)/sizeof(char));
 					int8_t b_rssi;
+					recently_tried = 0;
 					if (wifi_connected==0){
 						get_telem_buffer_peek((char*)buff,&b_rssi,sizeof(buff)/sizeof(char));
 						user_print_sentence((char*)buff);
@@ -560,8 +562,9 @@ int main(void)
 
 
 		//if not connected, connect
-		if ((telem_avaliable()>0) && (esp_busy() == 0) && (user_cr_flag == 0) && (wifi_connected==0) && (ssid_valid>0)){
+		if ((telem_avaliable()>0) && (esp_busy() == 0) && (user_cr_flag == 0) && (wifi_connected==0) && (ssid_valid>0) && (recently_tried == 0)){
 			esp_connect_ap_non_blocking(ssid,pwd);
+			recently_tried = 1;
 		}
 
 		//if stuff waiting to be uploaded

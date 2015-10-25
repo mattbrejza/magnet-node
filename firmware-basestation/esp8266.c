@@ -52,7 +52,7 @@ static char* upload_respbuff_nb;
 static uint16_t upload_resp_maxlen_nb;
 static uint16_t* upload_resp_len_nb;
 
-static uint8_t cmd_state = 0;
+static volatile uint8_t cmd_state = 0;
 static char* ap_conn_ssid_name;
 static char* ap_conn_password;
 
@@ -207,7 +207,7 @@ static void esp_connect_ap_step2(char* ap_name, char* ap_password)
 	uart_send_blocking_string("\",\"");
 	uart_send_blocking_string(ap_password);
 	uart_send_blocking_string("\"\n");
-	timeout = 120;
+	timeout = 200;
 	/*
 	while((pending_command&0x7F) && (timeout) ){
 		process_esp_buffer();
