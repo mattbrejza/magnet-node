@@ -167,6 +167,11 @@ THD_FUNCTION(RfmThread, arg)
     // Set up the SPI driver
     spiStart(&RFM_SPID, &rfm_spicfg);
 
+    // Raise RST for 100us to reset the RFM
+    palSetPad(GPIOA, GPIOA_RFM_RST);
+    chThdSleepMilliseconds(1);
+    palClearPad(GPIOA, GPIOA_RFM_RST);
+
     /* Set up device */
     for (i = 0; CONFIG[i][0] != 255; i++)
         _rfm_write_register(CONFIG[i][0], CONFIG[i][1]);
@@ -177,6 +182,7 @@ THD_FUNCTION(RfmThread, arg)
 
     /* Zero version number, RFM probably not
      * connected/functioning */
+    res = 0;
     _rfm_read_register(RFM69_REG_10_VERSION, &res);
     if(!res)
         chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
