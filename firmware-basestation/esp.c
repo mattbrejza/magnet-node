@@ -18,34 +18,7 @@
 #include "esp.h"
 #include "usbserial.h"
 
-/**
- * Size of the ring buffer into which we put incoming data from the ESP
- * that is waiting to be processed
- */
-#define ESP_BUFFER_SIZE 256
-
-/**
- * Number of items in the ESP thread processing mailbox
- */
-#define MAILBOX_ITEMS 8
-
 static SerialUSBDriver *SDU1;
-
-/**
- * These are the messages that are posted to the mailbox
- */
-typedef struct esp_message_t {
-    uint32_t opcode;
-    char buf[64];
-} esp_message_t;
-
-/**
- * The current configuration and status of the ESP are stored here
- */
-typedef struct esp_status_t {
-    uint8_t ipstatus;
-    uint8_t linkstatus;
-} esp_status_t;
 
 static esp_status_t esp_status;
 
@@ -80,8 +53,6 @@ MEMORYPOOL_DECL(mailbox_mempool, MAILBOX_ITEMS * sizeof(esp_message_t), NULL);
  */
 MAILBOX_DECL(esp_mailbox, &mailbox_buffer, MAILBOX_ITEMS);
 
-uint32_t esp_state;
-
 const char ESP_STRING_VERSION[] = "AT+GMR\r\n";
 const char ESP_STRING_AT[] = "AT\r\n";
 const char ESP_STRING_RST[] = "AT+RST\r\n";
@@ -96,6 +67,8 @@ const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\
 const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
 const char ESP_UPLOAD_CONTENT[] = "origin=JJJ&data=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
+
+uint32_t esp_state;
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -194,7 +167,7 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(s), MS2ST(100));
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
                     strlen(ESP_STRING_CRLF), MS2ST(500));
-            chThdSleepMilliseconds(10);
+            chThdSleepMilliseconds(50);
             // Now begins the HTTP req
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_START,
                     strlen(ESP_UPLOAD_START), MS2ST(500));
@@ -377,9 +350,10 @@ static void esp_state_machine(void)
             }
             break;
         case ESP_MSG_SEND:
-            if(strstr(esp_buffer, ESP_RESP_OK))
+            if(strstr(esp_buffer, ESP_RESP_UNLINK))
             {
                 esp_status.linkstatus = ESP_NOTLINKED;
+                chprintf((BaseSequentialStream*)SDU1, "Data sent & acked\r\n");
                 esp_state = 0;
             }
             break;

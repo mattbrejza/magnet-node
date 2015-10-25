@@ -13,6 +13,17 @@
 #define __ESP_H__
 
 /**
+ * Size of the ring buffer into which we put incoming data from the ESP
+ * that is waiting to be processed
+ */
+#define ESP_BUFFER_SIZE 512
+
+/**
+ * Number of items in the ESP thread processing mailbox
+ */
+
+#define MAILBOX_ITEMS 4
+/**
  * Operation codes
  */
 #define ESP_MSG_VERSION             0x01
@@ -47,6 +58,23 @@
 #define ESP_RESP_NOCHANGE           "no change\r\n"
 #define ESP_RESP_FAIL               "FAIL\r\n"
 #define ESP_RESP_LINKED             "Linked\r\n"
+#define ESP_RESP_UNLINK             "Unlink\r\n"
+
+/**
+ * These are the messages that are posted to the mailbox
+ */
+typedef struct esp_message_t {
+    uint32_t opcode;
+    char buf[64];
+} esp_message_t;
+
+/**
+ * The current configuration and status of the ESP are stored here
+ */
+typedef struct esp_status_t {
+    uint8_t ipstatus;
+    uint8_t linkstatus;
+} esp_status_t;
 
 void esp_request(uint32_t opcode, char* buf);
 THD_FUNCTION(EspThread, arg);
