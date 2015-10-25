@@ -12,8 +12,10 @@
 #include <string.h>
 
 #include "ch.h"
+#include "chprintf.h"
 #include "hal.h"
 
+#include "usbserial.h"
 #include "esp.h"
 #include "rfm.h"
 
@@ -33,6 +35,8 @@ static const SPIConfig rfm_spicfg = {
 
 // Track the current radio mode
 static rfm_reg_t _mode;
+
+static SerialUSBDriver *SDU1;
 
 /**
  * Send a byte to the RFM
@@ -136,12 +140,51 @@ static rfm_status_t _rfm_write_burst(const rfm_reg_t reg, rfm_reg_t *data,
     return RFM_OK;
 }
 
+/**
+ * Set the mode of the RFM69 radio/
+ * @param mode The new mode of the radio
+ */
+static rfm_status_t _rfm_setmode(const rfm_reg_t mode)
+{
+    rfm_reg_t res;
+    _rfm_read_register(RFM69_REG_01_OPMODE, &res);
+    _rfm_write_register(RFM69_REG_01_OPMODE, (res & 0xE3) | mode);
+    _mode = mode;
+    return RFM_OK;
+}
+
 THD_FUNCTION(RfmThread, arg)
 {
     (void)arg;
+    uint8_t i;
+    rfm_reg_t res;
+
+    // Get pointer to SDU so we cna print to shell
+    SDU1 = usb_get_sdu();
+
+    /* Set up device */
+    for (i = 0; CONFIG[i][0] != 255; i++)
+        _rfm_write_register(CONFIG[i][0], CONFIG[i][1]);
+
+    /* Set initial mode */
+    _mode = RFM69_MODE_RX;
+    _rfm_setmode(_mode);
+
+    /* Zero version number, RFM probably not
+     * connected/functioning */
+    _rfm_read_register(RFM69_REG_10_VERSION, &res);
+    if(!res)
+        chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
 
     // Set up the SPI driver
     spiStart(&RFM_SPID, &rfm_spicfg);
+
+    // Regularly poll the RFM for new packets, and if we get them,
+    // post them to the ESP mailbox for uploading
+    while(TRUE)
+    {
+        chThdSleepMilliseconds(100);
+    }
 }
 
 /**
