@@ -22,8 +22,8 @@ static SerialUSBDriver *SDU1;
 
 static esp_status_t esp_status;
 
-/** Temporary storage for packets */
-char packet_temp[64];
+/* The message we're currently processing, NULL if none */
+esp_message_t *curmsg;
 
 /**
  * Memory for the ESP buffer
@@ -67,8 +67,6 @@ const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\
 const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
 const char ESP_UPLOAD_CONTENT[] = "origin=JJJ&data=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
-
-uint32_t esp_state;
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -117,8 +115,7 @@ static void esp_process_msg(esp_message_t* msg)
     uint16_t reqlen, contentlen;
     char s[6];
 
-    esp_state = msg->opcode;
-    switch(esp_state)
+    switch(msg->opcode)
     {
         case ESP_MSG_VERSION:
             // Request the firmware version of the ESP
@@ -155,7 +152,7 @@ static void esp_process_msg(esp_message_t* msg)
             break;
         case ESP_MSG_SEND:
             // Send the (up to) 64 byte message in the payload to the server
-            contentlen = strlen(packet_temp);
+            contentlen = strlen(curmsg->buf);
             reqlen = strlen(ESP_UPLOAD_START) + strlen(ESP_UPLOAD_END) 
                 + strlen(ESP_UPLOAD_CONTENT) + contentlen + 2; // FIXME
             // Send CIPSEND=xx where xx is the number of bytes
@@ -180,8 +177,8 @@ static void esp_process_msg(esp_message_t* msg)
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_CONTENT,
                     strlen(ESP_UPLOAD_CONTENT), MS2ST(500));
             // Now the content
-            sdWriteTimeout(&SD1, (const uint8_t *)packet_temp,
-                    strlen(packet_temp), MS2ST(500));
+            sdWriteTimeout(&SD1, (const uint8_t *)curmsg->buf,
+                    strlen(curmsg->buf), MS2ST(500));
             break;
         case ESP_MSG_START:
             // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
@@ -191,16 +188,13 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(UKHASNET_IP), MS2ST(100));
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
                     strlen(ESP_STRING_CRLF), MS2ST(100));
-            strncpy(packet_temp, msg->buf, 64);
+            strncpy(curmsg->buf, msg->buf, 64);
             chThdSleepMilliseconds(10);
             break;
         default:
-            esp_state = 0;
+            curmsg = NULL;
             break;
-   }
-
-    // Free the memory in the pool
-    chPoolFree(&mailbox_mempool, (void *)msg);
+    }
 
     return;
 }
@@ -259,6 +253,16 @@ static size_t esp_receive_byte(char* buf)
 }
 
 /**
+ * Remove the message content from the memory pool and set curmsg=NULL
+ * once we have finished with it
+ */
+static void esp_curmsg_delete(void)
+{
+    chPoolFree(&mailbox_mempool, (void *)curmsg);
+    curmsg = NULL;
+}
+
+/**
  * The state machine that handles incoming messages
  */
 static void esp_state_machine(void)
@@ -268,7 +272,7 @@ static void esp_state_machine(void)
     char user_print_buf[32];
 
     /* What we do here depends on what we're waiting for */
-    switch(esp_state)
+    switch(curmsg->opcode)
     {
         case ESP_MSG_VERSION:
             // Wait for OK
@@ -282,21 +286,21 @@ static void esp_state_machine(void)
                 user_print_buf[len] = '\0';
                 chprintf((BaseSequentialStream*)SDU1, user_print_buf);
                 chprintf((BaseSequentialStream*)SDU1, "\r\n");
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             break;
         case ESP_MSG_RST:
             if(strstr(esp_buffer, ESP_RESP_READY))
             {
                 chprintf((BaseSequentialStream*)SDU1, "ESP reset successful\r\n");
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             break;
         case ESP_MSG_CWMODE:
             if(strstr(esp_buffer, ESP_RESP_OK)
                     || strstr(esp_buffer, ESP_RESP_NOCHANGE))
             {
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             break;
         case ESP_MSG_IP:
@@ -310,19 +314,19 @@ static void esp_state_machine(void)
                 user_print_buf[len] = '\0';
                 chprintf((BaseSequentialStream*)SDU1, user_print_buf);
                 chprintf((BaseSequentialStream*)SDU1, "\r\n");
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             break;
         case ESP_MSG_JOIN:
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
                 chprintf((BaseSequentialStream*)SDU1, "AP join success\r\n");
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             else if(strstr(esp_buffer, ESP_RESP_FAIL))
             {
                 chprintf((BaseSequentialStream*)SDU1, "AP join failure\r\n");
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             break;
         case ESP_MSG_STATUS:
@@ -338,15 +342,16 @@ static void esp_state_machine(void)
                 chprintf((BaseSequentialStream*)SDU1, "\r\n");
                 // Update status struct with integer status value
                 esp_status.ipstatus = (uint8_t)(user_print_buf[len-3] - 48);
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             break;
         case ESP_MSG_START:
             if(strstr(esp_buffer, ESP_RESP_LINKED))
             {
                 esp_status.linkstatus = ESP_LINKED;
-                esp_request(ESP_MSG_SEND, packet_temp);
-                esp_state = 0;
+                // The payload of curmsg is the packet data from the RFM
+                esp_request(ESP_MSG_SEND, curmsg->buf);
+                esp_curmsg_delete();
             }
             break;
         case ESP_MSG_SEND:
@@ -354,7 +359,7 @@ static void esp_state_machine(void)
             {
                 esp_status.linkstatus = ESP_NOTLINKED;
                 chprintf((BaseSequentialStream*)SDU1, "Data sent & acked\r\n");
-                esp_state = 0;
+                esp_curmsg_delete();
             }
             break;
         default:
@@ -398,7 +403,7 @@ THD_FUNCTION(EspThread, arg)
     while(TRUE)
     {
         // If we're in the middle of a transaction, continue processing it
-        if(esp_state != 0)
+        if(curmsg != NULL)
         {
             // Get a new byte if there is one
             if( esp_receive_byte(&newbyte) > 0 )
@@ -416,7 +421,7 @@ THD_FUNCTION(EspThread, arg)
                 chThdSleepMilliseconds(10);
             }
         } 
-        else
+        else /* curmsg == NULL */
         {
             // We've finished with the last transaction, wait for a new 
             // message in our mailbox and begin to process it
@@ -432,7 +437,8 @@ THD_FUNCTION(EspThread, arg)
             esp_buf_ptr = esp_buffer;
 
             // Process this message
-            esp_process_msg((esp_message_t *)msg);
+            curmsg = (esp_message_t *)msg;
+            esp_process_msg(curmsg);
         }
 
     }
