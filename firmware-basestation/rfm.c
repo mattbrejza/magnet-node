@@ -44,9 +44,7 @@ static SerialUSBDriver *SDU1;
  */
 static void spi_send_byte(const rfm_reg_t data)
 {
-    spiSelect(&RFM_SPID);
     spiSend(&RFM_SPID, 1, (void *)&data);
-    spiUnselect(&RFM_SPID);
 }
 
 /**
@@ -55,9 +53,7 @@ static void spi_send_byte(const rfm_reg_t data)
  */
 static void spi_receive_byte(rfm_reg_t *data)
 {
-    spiSelect(&RFM_SPID);
     spiReceive(&RFM_SPID, 1, (void *)data);
-    spiUnselect(&RFM_SPID);
 }
 
 /**
@@ -67,9 +63,7 @@ static void spi_receive_byte(rfm_reg_t *data)
  */
 static void spi_send_bulk(rfm_reg_t *data, const uint8_t len)
 {
-    spiSelect(&RFM_SPID);
     spiSend(&RFM_SPID, len, (void *)data);
-    spiUnselect(&RFM_SPID);
 }
 
 /**
@@ -79,9 +73,7 @@ static void spi_send_bulk(rfm_reg_t *data, const uint8_t len)
  */
 static void spi_receive_bulk(rfm_reg_t *data, const uint8_t len)
 {
-    spiSelect(&RFM_SPID);
     spiReceive(&RFM_SPID, len, (void *)data);
-    spiUnselect(&RFM_SPID);
 }
 
 /**
@@ -92,8 +84,10 @@ static void spi_receive_bulk(rfm_reg_t *data, const uint8_t len)
 static rfm_status_t _rfm_read_register(const rfm_reg_t reg, rfm_reg_t *res)
 {
     // Send the register then read the result back
+    spiSelect(&RFM_SPID);
     spi_send_byte(reg);
     spi_receive_byte(res);
+    spiUnselect(&RFM_SPID);
     return RFM_OK;
 }
 
@@ -105,8 +99,10 @@ static rfm_status_t _rfm_read_register(const rfm_reg_t reg, rfm_reg_t *res)
 static rfm_status_t _rfm_write_register(const rfm_reg_t reg, const rfm_reg_t val)
 {
     // Set the WRITE bit to tell the RFM that we're writing (not reading)
+    spiSelect(&RFM_SPID);
     spi_send_byte(reg | RFM69_SPI_WRITE_MASK);
     spi_send_byte(val);
+    spiUnselect(&RFM_SPID);
     return RFM_OK;
 }
 
@@ -119,10 +115,12 @@ static rfm_status_t _rfm_write_register(const rfm_reg_t reg, const rfm_reg_t val
 static rfm_status_t _rfm_read_burst(const rfm_reg_t reg, rfm_reg_t *res,
         uint8_t len)
 {
+    spiSelect(&RFM_SPID);
     // Send beginning address
     spi_send_byte(reg);
     // Read in bulk
     spi_receive_bulk(res, len);
+    spiUnselect(&RFM_SPID);
     return RFM_OK;
 }
 
@@ -135,8 +133,10 @@ static rfm_status_t _rfm_read_burst(const rfm_reg_t reg, rfm_reg_t *res,
 static rfm_status_t _rfm_write_burst(const rfm_reg_t reg, rfm_reg_t *data,
         uint8_t len)
 {
+    spiSelect(&RFM_SPID);
     spi_send_byte(reg | RFM69_SPI_WRITE_MASK);
     spi_send_bulk(data, len);
+    spiUnselect(&RFM_SPID);
     return RFM_OK;
 }
 
@@ -161,8 +161,7 @@ THD_FUNCTION(RfmThread, arg)
     
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
-    chThdSleepMilliseconds(3000);
-    chprintf((BaseSequentialStream *)SDU1, "Entering RFM setup\r\n");
+    chThdSleepMilliseconds(100);
 
     // Set up the SPI driver
     spiStart(&RFM_SPID, &rfm_spicfg);
@@ -184,10 +183,12 @@ THD_FUNCTION(RfmThread, arg)
      * connected/functioning */
     res = 0;
     _rfm_read_register(RFM69_REG_10_VERSION, &res);
-    if(!res)
+    while(!res)
+    {
+        chThdSleepMilliseconds(1000);
         chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
-    else
-        chprintf((BaseSequentialStream *)SDU1, "RFM init OK\r\n");
+        _rfm_read_register(RFM69_REG_10_VERSION, &res);
+    }
 
     // Regularly poll the RFM for new packets, and if we get them,
     // post them to the ESP mailbox for uploading
