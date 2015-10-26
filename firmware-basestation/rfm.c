@@ -23,13 +23,13 @@
 #define RFM_SS_PORT     GPIOB
 #define RFM_SS_PIN      GPIOB_RFM_SS
 
-// Baud rate = periph clock/128
+// Baud rate = periph clock/3 = 1.5MHz
 // DS[0111] is 8 bit data transfers
 static const SPIConfig rfm_spicfg = {
     NULL,
     GPIOB,
     GPIOB_RFM_SS,
-    SPI_CR1_BR_2 | SPI_CR1_BR_1,
+    SPI_CR1_BR_2,
     SPI_CR2_DS_2 | SPI_CR2_DS_1 | SPI_CR2_DS_0
 };
 
