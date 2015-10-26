@@ -67,6 +67,8 @@
 
 /**
  * These are the messages that are posted to the mailbox
+ * @note These must be word-aligned, i.e. must be multiples of 4 bytes
+ * on 32 bit architectures.
  */
 typedef struct esp_message_t {
     uint32_t opcode;
@@ -74,7 +76,7 @@ typedef struct esp_message_t {
 } esp_message_t;
 
 /**
- * The current status of the ESP are stored here
+ * The current status of the ESP is stored here
  */
 typedef struct esp_status_t {
     uint8_t ipstatus;
@@ -82,7 +84,13 @@ typedef struct esp_status_t {
 } esp_status_t;
 
 /**
- * The configuration of the wifi portion of the node
+ * The configuration of the wifi portion of the node, including:
+ * - the node name
+ * - the wifi ssid
+ * - the wifi password
+ * - if packets should be echoed to the terminal
+ * @note This struct should be stored in non-volatile memory and loaded on
+ * system boot.
  */
 typedef struct esp_config_t {
     char origin[16];
