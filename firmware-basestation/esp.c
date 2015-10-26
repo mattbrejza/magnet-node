@@ -19,17 +19,19 @@
 #include "usbserial.h"
 
 static SerialUSBDriver *SDU1;
-
 static esp_status_t esp_status;
+static esp_config_t esp_config;
 
 /* The message we're currently processing, NULL if none */
 esp_message_t *curmsg;
 
 /**
- * Memory for the ESP buffer
+ * Memory for the ESP buffers
  */
 static char esp_buffer[ESP_BUFFER_SIZE];
 static char *esp_buf_ptr;
+static char esp_out_buf[ESP_OUT_BUF_SIZE];
+static char *esp_out_buf_ptr;
 
 /**
  * Memory for the mailbox (msg_ts are queued in here)
@@ -65,7 +67,8 @@ const char ESP_STRING_SEND[] = "AT+CIPSEND=";
 const char ESP_STRING_START[] = "AT+CIPSTART=";
 const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
 const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
-const char ESP_UPLOAD_CONTENT[] = "origin=JJJ&data=";
+const char ESP_UPLOAD_CONTENT_ORIGIN[] = "origin=";
+const char ESP_UPLOAD_CONTENT_DATA[] = "&data=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
 
 /**
@@ -108,12 +111,20 @@ static void esp_init(void)
 }
 
 /**
+ * Set the name of this node
+ */
+void esp_set_origin(char *neworigin)
+{
+    chsnprintf(esp_config.origin, 16, "%s", neworigin);
+}
+
+/**
  * We got a message from somewhere, do something with it
  */
 static void esp_process_msg(esp_message_t* msg)
 {
-    uint16_t reqlen, contentlen;
-    char s[6];
+    uint16_t contentlen;
+    char contentlen_s[3];
 
     switch(msg->opcode)
     {
@@ -139,12 +150,11 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(ESP_STRING_IP), MS2ST(100));
             break;
         case ESP_MSG_JOIN:
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_JOIN,
-                    strlen(ESP_STRING_JOIN), MS2ST(100));
-            sdWriteTimeout(&SD1, (const uint8_t *)msg->buf,
-                    strlen(msg->buf), MS2ST(100));
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
-                    strlen(ESP_STRING_CRLF), MS2ST(100));
+            esp_out_buf_ptr = esp_out_buf;
+            chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n",
+                    ESP_STRING_JOIN, msg->payload);
+            sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
+                    strlen(esp_out_buf), MS2ST(500));
             break;
         case ESP_MSG_STATUS:
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_STATUS,
@@ -152,43 +162,50 @@ static void esp_process_msg(esp_message_t* msg)
             break;
         case ESP_MSG_SEND:
             // Send the (up to) 64 byte message in the payload to the server
-            contentlen = strlen(curmsg->buf);
-            reqlen = strlen(ESP_UPLOAD_START) + strlen(ESP_UPLOAD_END) 
-                + strlen(ESP_UPLOAD_CONTENT) + contentlen + 2; // FIXME
+            contentlen = strlen(curmsg->payload);
+            chsnprintf(contentlen_s, 3, "%u", contentlen);
+            // Reset buf pointer
+            esp_out_buf_ptr = esp_out_buf;
             // Send CIPSEND=xx where xx is the number of bytes
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_SEND,
-                    strlen(ESP_STRING_SEND), MS2ST(500));
-            // Now the number of bytes
-            chsnprintf(s, 6, "%u", reqlen);
-            sdWriteTimeout(&SD1, (const uint8_t *)s,
-                    strlen(s), MS2ST(100));
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
-                    strlen(ESP_STRING_CRLF), MS2ST(500));
+            chsnprintf(esp_out_buf_ptr, 512, "%s%u\r\n", ESP_STRING_SEND,
+                    strlen(ESP_UPLOAD_START)
+                    + strlen(contentlen_s)
+                    + strlen(ESP_UPLOAD_END)
+                    + strlen(ESP_UPLOAD_CONTENT_ORIGIN)
+                    + strlen(esp_config.origin)
+                    + strlen(ESP_UPLOAD_CONTENT_DATA)
+                    + strlen(curmsg->payload));
+            esp_out_buf_ptr += strlen(esp_out_buf_ptr);
+            sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
+                    strlen(esp_out_buf), MS2ST(500));
+            // Wait for the ESP to send ">"
             chThdSleepMilliseconds(50);
             // Now begins the HTTP req
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_START,
-                    strlen(ESP_UPLOAD_START), MS2ST(500));
-            // Insert content length
-            chsnprintf(s, 6, "%u", contentlen + strlen(ESP_UPLOAD_CONTENT));
-            sdWriteTimeout(&SD1, (const uint8_t *)s,
-                    strlen(s), MS2ST(500));
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_END,
-                    strlen(ESP_UPLOAD_END), MS2ST(500));
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_UPLOAD_CONTENT,
-                    strlen(ESP_UPLOAD_CONTENT), MS2ST(500));
-            // Now the content
-            sdWriteTimeout(&SD1, (const uint8_t *)curmsg->buf,
-                    strlen(curmsg->buf), MS2ST(500));
+            // Reset buf pointer
+            esp_out_buf_ptr = esp_out_buf;
+            chsnprintf(esp_out_buf_ptr, 512, "%s%u%s%s%s%s%s", ESP_UPLOAD_START,
+                    contentlen 
+                        + strlen(ESP_UPLOAD_CONTENT_ORIGIN)
+                        + strlen(ESP_UPLOAD_CONTENT_DATA)
+                        + strlen(esp_config.origin),
+                    ESP_UPLOAD_END,
+                    ESP_UPLOAD_CONTENT_ORIGIN,
+                    esp_config.origin,
+                    ESP_UPLOAD_CONTENT_DATA,
+                    curmsg->payload);
+            esp_out_buf_ptr += strlen(esp_out_buf_ptr);
+            sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
+                    strlen(esp_out_buf), MS2ST(500));
             break;
         case ESP_MSG_START:
             // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_START,
-                    strlen(ESP_STRING_START), MS2ST(100));
-            sdWriteTimeout(&SD1, (const uint8_t *)UKHASNET_IP,
-                    strlen(UKHASNET_IP), MS2ST(100));
-            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_CRLF,
-                    strlen(ESP_STRING_CRLF), MS2ST(100));
-            strncpy(curmsg->buf, msg->buf, 64);
+            esp_out_buf_ptr = esp_out_buf;
+            chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n%s",
+                    ESP_STRING_START,
+                    UKHASNET_IP,
+                    curmsg->payload);
+            sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
+                    strlen(esp_out_buf), MS2ST(500));
             chThdSleepMilliseconds(10);
             break;
         default:
@@ -212,7 +229,7 @@ void esp_request(uint32_t opcode, char* buf)
     esp_message_t msg;
     msg.opcode = opcode;
     if( buf != NULL)
-        strncpy(msg.buf, buf, 64);
+        strncpy(msg.payload, buf, 64);
 
     // Allocate memory for it in the pool
     msg_in_pool = chPoolAlloc(&mailbox_mempool);
@@ -350,7 +367,7 @@ static void esp_state_machine(void)
             {
                 esp_status.linkstatus = ESP_LINKED;
                 // The payload of curmsg is the packet data from the RFM
-                esp_request(ESP_MSG_SEND, curmsg->buf);
+                esp_request(ESP_MSG_SEND, curmsg->payload);
                 esp_curmsg_delete();
             }
             break;
@@ -398,6 +415,9 @@ THD_FUNCTION(EspThread, arg)
 
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
+
+    //FIXME
+    chsnprintf(esp_config.origin, 4, "%s", "JJ3");
     
     // Loop forever for this thread
     while(TRUE)

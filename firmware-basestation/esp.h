@@ -19,6 +19,11 @@
 #define ESP_BUFFER_SIZE 512
 
 /**
+ * Size of the request buffer for constructing data to be sent to the ESP
+ */
+#define ESP_OUT_BUF_SIZE 256
+
+/**
  * Number of items in the ESP thread processing mailbox
  */
 
@@ -65,18 +70,26 @@
  */
 typedef struct esp_message_t {
     uint32_t opcode;
-    char buf[64];
+    char payload[64];
 } esp_message_t;
 
 /**
- * The current configuration and status of the ESP are stored here
+ * The current status of the ESP are stored here
  */
 typedef struct esp_status_t {
     uint8_t ipstatus;
     uint8_t linkstatus;
 } esp_status_t;
 
+/**
+ * The configuration of the wifi portion of the node
+ */
+typedef struct esp_config_t {
+    char origin[16];
+} esp_config_t;
+
 void esp_request(uint32_t opcode, char* buf);
+void esp_set_origin(char *neworigin);
 THD_FUNCTION(EspThread, arg);
 
 #endif /* __ESP_H__ */

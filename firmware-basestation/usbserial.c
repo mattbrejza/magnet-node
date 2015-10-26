@@ -371,7 +371,7 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     if(argc < 1)
     {
-        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [join <ssid> <pass>]\r\n");
+        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [join <ssid> <pass>] [setname <name>]\r\n");
         return;
     }
 
@@ -502,6 +502,11 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     {
         esp_request(ESP_MSG_START, "2aT19.0[JJJ]");
     }
+    else if(strcmp(argv[0], "setname") == 0)
+    {
+        esp_set_origin(argv[1]);
+        chprintf(chp, "New origin: %s\r\n", argv[1]);
+    } /* argv[0] is setname */
     else
     {
         chprintf(chp, "Command not recognised\r\n");
