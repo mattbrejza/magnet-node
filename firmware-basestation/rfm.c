@@ -23,6 +23,9 @@
 #define RFM_SS_PORT     GPIOB
 #define RFM_SS_PIN      GPIOB_RFM_SS
 
+/* Buffer for received data */
+static rfm_reg_t rfm_buf[64];
+
 // Baud rate = periph clock/3 = 1.5MHz
 // DS[0111] is 8 bit data transfers
 static const SPIConfig rfm_spicfg = {
@@ -144,7 +147,7 @@ static rfm_status_t _rfm_write_burst(const rfm_reg_t reg, rfm_reg_t *data,
  * Set the mode of the RFM69 radio/
  * @param mode The new mode of the radio
  */
-static rfm_status_t _rfm_setmode(const rfm_reg_t mode)
+static rfm_status_t rfm_setmode(const rfm_reg_t mode)
 {
     rfm_reg_t res;
     _rfm_read_register(RFM69_REG_01_OPMODE, &res);
@@ -153,11 +156,71 @@ static rfm_status_t _rfm_setmode(const rfm_reg_t mode)
     return RFM_OK;
 }
 
+/**
+ * Clear the FIFO in the RFM69. We do this by entering STBY mode and then
+ * returing to RX mode.
+ * @warning Must only be called in RX Mode
+ * @note Apparently this works... found in HopeRF demo code
+ * @returns RFM_OK for success, RFM_FAIL for failure.
+ */
+static rfm_status_t _rfm_clearfifo(void)
+{
+    rfm_setmode(RFM69_MODE_STDBY);
+    rfm_setmode(RFM69_MODE_RX);
+    return RFM_OK;
+}
+
+/**
+ * Get data from the RFM69 receive buffer.
+ * @param buf A pointer into the local buffer in which we would like the data.
+ * @param len The length of the data will be placed into this memory address
+ * @param lastrssi The RSSI of the packet we're getting
+ * @param rfm_packet_waiting A boolean pointer which is true if a packet was
+ * received and has been put into the buffer buf, false if there was no packet
+ * to get from the RFM69.
+ * @returns RFM_OK for success, RFM_FAIL for failure.
+ */
+static rfm_status_t rfm_receive(rfm_reg_t* buf, rfm_reg_t* len, int16_t* lastrssi,
+        bool* rfm_packet_waiting)
+{
+    rfm_reg_t res;
+
+    /* Check IRQ register for payloadready flag
+     * (indicates RXed packet waiting in FIFO) */
+    _rfm_read_register(RFM69_REG_28_IRQ_FLAGS2, &res);
+    if (res & RF_IRQFLAGS2_PAYLOADREADY) {
+        /* Get packet length from first byte of FIFO */
+        _rfm_read_register(RFM69_REG_00_FIFO, len);
+        *len += 1;
+        /* Read FIFO into our Buffer */
+        _rfm_read_burst(RFM69_REG_00_FIFO, buf, RFM69_FIFO_SIZE);
+        /* Read RSSI register (should be of the packet? - TEST THIS) */
+        _rfm_read_register(RFM69_REG_24_RSSI_VALUE, &res);
+        *lastrssi = -(res/2);
+        /* Clear the radio FIFO (found in HopeRF demo code) */
+        _rfm_clearfifo();
+        *rfm_packet_waiting = true;
+        return RFM_OK;
+    } else {
+        *rfm_packet_waiting = false;
+        return RFM_OK;
+    }
+    
+    return RFM_FAIL;
+}
+
+/**
+ * Main thread for RFM69
+ */
 THD_FUNCTION(RfmThread, arg)
 {
     (void)arg;
     uint8_t i;
-    rfm_reg_t res;
+    rfm_reg_t res, len;
+    int16_t lastrssi;
+    bool packetwaiting;
+    
+    packetwaiting = false;
     
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
@@ -177,7 +240,7 @@ THD_FUNCTION(RfmThread, arg)
 
     /* Set initial mode */
     _mode = RFM69_MODE_RX;
-    _rfm_setmode(_mode);
+    rfm_setmode(_mode);
 
     /* Zero version number, RFM probably not
      * connected/functioning */
@@ -190,10 +253,20 @@ THD_FUNCTION(RfmThread, arg)
         _rfm_read_register(RFM69_REG_10_VERSION, &res);
     }
 
+    rfm_receive(rfm_buf, &len, &lastrssi, &packetwaiting);
+
     // Regularly poll the RFM for new packets, and if we get them,
     // post them to the ESP mailbox for uploading
     while(TRUE)
     {
+        // Check for new packets
+        _rfm_read_register(RFM69_REG_28_IRQ_FLAGS2, &res);
+        rfm_receive(rfm_buf, &len, &lastrssi, &packetwaiting);
+        if(packetwaiting)
+        {
+            chprintf((BaseSequentialStream *)SDU1, "%s\r\n", (char *)rfm_buf);
+            packetwaiting = false;
+        }
         chThdSleepMilliseconds(100);
     }
 }
