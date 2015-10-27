@@ -11,8 +11,12 @@ void timeout_tick(void);
 void esp_run_echo(char* command, void (*print_char)(char));
 uint8_t esp_service_upload_task(void);
 void esp_upload_node_non_blocking_start(char* dest_ip, char* string, char* respbuff, uint16_t resp_maxlen, uint16_t* resp_len);
-uint8_t esp_busy(void);
+uint8_t esp_busy_upload(void);
 void esp_bootload(void);
+void esp_connect_ap_non_blocking(char* ap_name, char* ap_password);
+uint8_t esp_service_cmd_task(void);
+uint8_t esp_busy_cmd(void);
+uint8_t esp_busy(void);
 //uint8_t esp_conn_close(void);
 
 #define FAIL_DNS 0xF0
@@ -23,3 +27,4 @@ void esp_bootload(void);
 #define FAIL_TIMEOUT 0xF2
 
 #define ESP_UPLOAD_DONE_OK 0xA0
+#define ESP_CONNECT_DONE_OK 0xA1

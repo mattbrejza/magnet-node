@@ -18,6 +18,7 @@ static uint8_t check_esp_buffer(void);
 static void process_esp_buffer(void);
 static void clear_buffer(void);
 static uint8_t look_for_200(void);
+static void esp_connect_ap_step2(char* ap_name, char* ap_password);
 
 static char upload_string_s[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
 static char upload_string_e[] = "\r\nConnection: close\r\n\r\n";
@@ -50,6 +51,10 @@ static char* upload_string_nb;
 static char* upload_respbuff_nb;
 static uint16_t upload_resp_maxlen_nb;
 static uint16_t* upload_resp_len_nb;
+
+static volatile uint8_t cmd_state = 0;
+static char* ap_conn_ssid_name;
+static char* ap_conn_password;
 
 
 
@@ -129,6 +134,89 @@ uint8_t esp_disconnect_ap(void)
 	uart_send_blocking_string("AT+CWQAP\n");
 	while((pending_command&0x7F)  && (timeout)) process_esp_buffer();
 	return pending_command;
+}
+
+//returns 0 if still uploading, ESP_UPLOAD_DONE_OK if done ok, otherwise error messages are >0xF0
+uint8_t esp_service_cmd_task(void)
+{
+	uint8_t res = 0;
+
+	process_esp_buffer();
+	if ((pending_command>0) && (pending_command < 0xF0) && (timeout) )  //CHANGE THIS
+		return 0;
+
+	//check for errors
+	if ((pending_command > 1) || (timeout == 0)){ //failure
+		response_buffer = 0;
+		res = pending_command;    //set error flag
+	}
+	if ((res > 0) && (res < 0xF0))
+		res =  FAIL_TIMEOUT;
+
+
+
+	switch (cmd_state){
+
+		case 1:  //just finished step 1
+			if (res>0){
+				cmd_state = 0;
+				return res;
+			}
+			esp_connect_ap_step2(ap_conn_ssid_name, ap_conn_password);
+			//upload_step2_nb(upload_dest_ip_nb, upload_string_nb, upload_respbuff_nb, upload_resp_maxlen_nb);
+			cmd_state = 2;
+
+			break;
+		case 2:
+			if (res>0){
+				cmd_state = 0;
+				return res;
+			}
+			cmd_state = 0;
+			return ESP_CONNECT_DONE_OK;
+
+		default:
+			cmd_state = 0;
+			return FAIL_GEN;
+			break;
+
+	}
+
+	return 0;
+}
+
+void esp_connect_ap_non_blocking(char* ap_name, char* ap_password)
+{
+	ap_conn_ssid_name = ap_name;
+	ap_conn_password = ap_password;
+
+	clear_buffer();
+	pending_command = 1;  //waiting for OK
+	timeout = 10;
+	uart_send_blocking_string("AT+CWMODE=1\n");
+
+	cmd_state = 1;
+}
+
+static void esp_connect_ap_step2(char* ap_name, char* ap_password)
+{
+
+	pending_command = 1;  //waiting for OK
+	uart_send_blocking_string("AT+CWJAP=\"");
+	uart_send_blocking_string(ap_name);
+	uart_send_blocking_string("\",\"");
+	uart_send_blocking_string(ap_password);
+	uart_send_blocking_string("\"\n");
+	timeout = 200;
+	/*
+	while((pending_command&0x7F) && (timeout) ){
+		process_esp_buffer();
+	}
+	if (pending_command > 0) //failure
+		return 1;
+	if (timeout == 0)  //failure
+		return 1;
+	return 0; */
 }
 
 uint8_t esp_connect_ap(char* ap_name, char* ap_password)
@@ -309,13 +397,30 @@ uint8_t esp_service_upload_task(void)
 	return 0;
 }
 
-uint8_t esp_busy(void)
+uint8_t esp_busy_upload(void)
 {
 	if (upload_string_state > 0)
 		return 1;
 	else
 		return 0;
 
+}
+
+uint8_t esp_busy_cmd(void)
+{
+	if (cmd_state > 0)
+		return 1;
+	else
+		return 0;
+
+}
+
+uint8_t esp_busy(void)
+{
+	if ((upload_string_state > 0) || (cmd_state > 0))
+		return 1;
+	else
+		return 0;
 }
 
 void esp_upload_node_non_blocking_start(char* dest_ip, char* string, char* respbuff, uint16_t resp_maxlen, uint16_t* resp_len)
