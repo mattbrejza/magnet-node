@@ -4440,13 +4440,19 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 </class>
 </classes>
 <parts>
-<part name="IC1" library="Mine" deviceset="STM32F0-32" device="" value="STM32F030K6"/>
-<part name="Y1" library="SparkFun-FreqCtrl" deviceset="CRYSTAL" device="HC49UV"/>
+<part name="IC1" library="Mine" deviceset="STM32F0-32" device="" value="STM32F030K6">
+<attribute name="FARNELL" value="2432085"/>
+</part>
+<part name="Y1" library="SparkFun-FreqCtrl" deviceset="CRYSTAL" device="HC49UV">
+<attribute name="FARNELL" value="1666962/(1652566)"/>
+</part>
 <part name="C1" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="18p"/>
 <part name="C2" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="12p"/>
 <part name="C3" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="12p"/>
 <part name="C4" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="560p"/>
-<part name="D1" library="diode" deviceset="DIODE_CAPACITANCE-" device="SOD523"/>
+<part name="D1" library="diode" deviceset="DIODE_CAPACITANCE-" device="SOD523">
+<attribute name="FARNELL" value="1757783/(2443453)"/>
+</part>
 <part name="R1" library="passives-7351" deviceset="RESISTOR" device="0603-N" value="2.2M"/>
 <part name="R2" library="passives-7351" deviceset="RESISTOR" device="0603-N" value="220k"/>
 <part name="GND1" library="supply1" deviceset="GND" device=""/>
@@ -4461,11 +4467,17 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <part name="C7" library="passives-7351" deviceset="CAPACITOR" device="0603-N" value="100n"/>
 <part name="+3V2" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND6" library="supply1" deviceset="GND" device=""/>
-<part name="Q1" library="SparkFun-DiscreteSemi" deviceset="MOSFET-NCHANNEL" device="2N7002PW"/>
-<part name="L1" library="passives-7351" deviceset="INDUCTOR" device="0603-N"/>
+<part name="Q1" library="SparkFun-DiscreteSemi" deviceset="MOSFET-NCHANNEL" device="2N7002PW">
+<attribute name="FARNELL" value="9845313"/>
+</part>
+<part name="L1" library="passives-7351" deviceset="INDUCTOR" device="0603-N" value="2u2">
+<attribute name="FARNELL" value="2215642"/>
+</part>
 <part name="C8" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
 <part name="C9" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
-<part name="L2" library="passives-7351" deviceset="INDUCTOR" device="0603-N"/>
+<part name="L2" library="passives-7351" deviceset="INDUCTOR" device="0603-N">
+<attribute name="FARNELL" value="1669538/(1711879)"/>
+</part>
 <part name="C10" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
 <part name="L3" library="passives-7351" deviceset="INDUCTOR" device="0603-N"/>
 <part name="C11" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
@@ -4502,13 +4514,19 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <text x="78.74" y="137.16" size="1.778" layer="91">en</text>
 </plain>
 <instances>
-<instance part="IC1" gate="G$1" x="50.8" y="25.4"/>
-<instance part="Y1" gate="G$1" x="96.52" y="10.16" rot="R180"/>
+<instance part="IC1" gate="G$1" x="50.8" y="25.4">
+<attribute name="FARNELL" x="50.8" y="25.4" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="Y1" gate="G$1" x="96.52" y="10.16" rot="R180">
+<attribute name="FARNELL" x="96.52" y="10.16" size="1.778" layer="96" rot="R180" display="off"/>
+</instance>
 <instance part="C1" gate="G$1" x="91.44" y="2.54"/>
 <instance part="C2" gate="G$1" x="101.6" y="2.54"/>
 <instance part="C3" gate="G$1" x="104.14" y="10.16" rot="R90"/>
 <instance part="C4" gate="G$1" x="121.92" y="0" rot="R180"/>
-<instance part="D1" gate="-B1" x="111.76" y="2.54" rot="R90"/>
+<instance part="D1" gate="-B1" x="111.76" y="2.54" rot="R90">
+<attribute name="FARNELL" x="111.76" y="2.54" size="1.778" layer="96" rot="R90" display="off"/>
+</instance>
 <instance part="R1" gate="G$1" x="116.84" y="10.16" rot="R180"/>
 <instance part="R2" gate="G$1" x="129.54" y="10.16" rot="R180"/>
 <instance part="GND1" gate="1" x="121.92" y="-5.08"/>
@@ -4523,11 +4541,17 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <instance part="C7" gate="G$1" x="12.7" y="27.94" rot="R180"/>
 <instance part="+3V2" gate="G$1" x="35.56" y="111.76"/>
 <instance part="GND6" gate="1" x="35.56" y="91.44"/>
-<instance part="Q1" gate="G$1" x="121.92" y="60.96"/>
-<instance part="L1" gate="G$1" x="121.92" y="76.2" rot="R90"/>
+<instance part="Q1" gate="G$1" x="121.92" y="60.96">
+<attribute name="FARNELL" x="121.92" y="60.96" size="1.778" layer="96" display="off"/>
+</instance>
+<instance part="L1" gate="G$1" x="121.92" y="76.2" rot="R90">
+<attribute name="FARNELL" x="121.92" y="76.2" size="1.778" layer="96" rot="R90" display="off"/>
+</instance>
 <instance part="C8" gate="G$1" x="132.08" y="60.96" rot="R180"/>
 <instance part="C9" gate="G$1" x="152.4" y="68.58" rot="R270"/>
-<instance part="L2" gate="G$1" x="139.7" y="68.58"/>
+<instance part="L2" gate="G$1" x="139.7" y="68.58">
+<attribute name="FARNELL" x="139.7" y="68.58" size="1.778" layer="96" display="off"/>
+</instance>
 <instance part="C10" gate="G$1" x="160.02" y="63.5"/>
 <instance part="L3" gate="G$1" x="167.64" y="68.58"/>
 <instance part="C11" gate="G$1" x="175.26" y="63.5"/>
