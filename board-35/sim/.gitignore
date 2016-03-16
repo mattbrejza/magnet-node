@@ -1,0 +1,5 @@
+*.raw
+*.op.raw
+*.fft
+*.log
+*.net
