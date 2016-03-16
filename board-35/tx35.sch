@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE eagle SYSTEM "eagle.dtd">
-<eagle version="6.6.0">
+<eagle version="6.5.0">
 <drawing>
 <settings>
 <setting alwaysvectorfont="no"/>
@@ -4468,12 +4468,14 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <part name="+3V2" library="supply1" deviceset="+3V3" device=""/>
 <part name="GND6" library="supply1" deviceset="GND" device=""/>
 <part name="Q1" library="SparkFun-DiscreteSemi" deviceset="MOSFET-NCHANNEL" device="2N7002PW">
-<attribute name="FARNELL" value="9845313"/>
+<attribute name="FARNELL" value="1894713"/>
 </part>
 <part name="L1" library="passives-7351" deviceset="INDUCTOR" device="0603-N" value="2u2">
 <attribute name="FARNELL" value="2215642"/>
 </part>
-<part name="C8" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
+<part name="C8" library="passives-7351" deviceset="CAPACITOR" device="0603-N">
+<attribute name="FARNELL" value="2434613/2435457"/>
+</part>
 <part name="C9" library="passives-7351" deviceset="CAPACITOR" device="0603-N"/>
 <part name="L2" library="passives-7351" deviceset="INDUCTOR" device="0603-N">
 <attribute name="FARNELL" value="1669538/(1711879)"/>
@@ -4547,7 +4549,9 @@ new: Attribute TP_SIGNAL_NAME&lt;br&gt;
 <instance part="L1" gate="G$1" x="121.92" y="76.2" rot="R90">
 <attribute name="FARNELL" x="121.92" y="76.2" size="1.778" layer="96" rot="R90" display="off"/>
 </instance>
-<instance part="C8" gate="G$1" x="132.08" y="60.96" rot="R180"/>
+<instance part="C8" gate="G$1" x="132.08" y="60.96" rot="R180">
+<attribute name="FARNELL" x="132.08" y="60.96" size="1.778" layer="96" rot="R180" display="off"/>
+</instance>
 <instance part="C9" gate="G$1" x="152.4" y="68.58" rot="R270"/>
 <instance part="L2" gate="G$1" x="139.7" y="68.58">
 <attribute name="FARNELL" x="139.7" y="68.58" size="1.778" layer="96" display="off"/>
