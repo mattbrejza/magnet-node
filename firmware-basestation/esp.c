@@ -366,6 +366,7 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_LINKED))
             {
                 esp_status.linkstatus = ESP_LINKED;
+                palSetPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
                 esp_request(ESP_MSG_SEND, curmsg->payload);
                 esp_curmsg_delete();
@@ -375,7 +376,7 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_UNLINK))
             {
                 esp_status.linkstatus = ESP_NOTLINKED;
-                chprintf((BaseSequentialStream*)SDU1, "Data sent & acked\r\n");
+                palClearPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
             break;

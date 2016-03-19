@@ -184,6 +184,7 @@ static rfm_status_t rfm_receive(rfm_reg_t* buf, rfm_reg_t* len, int16_t* lastrss
         bool* rfm_packet_waiting)
 {
     rfm_reg_t res;
+    *len = 0;
 
     /* Check IRQ register for payloadready flag
      * (indicates RXed packet waiting in FIFO) */
@@ -191,9 +192,9 @@ static rfm_status_t rfm_receive(rfm_reg_t* buf, rfm_reg_t* len, int16_t* lastrss
     if (res & RF_IRQFLAGS2_PAYLOADREADY) {
         /* Get packet length from first byte of FIFO */
         _rfm_read_register(RFM69_REG_00_FIFO, len);
-        *len += 1;
         /* Read FIFO into our Buffer */
-        _rfm_read_burst(RFM69_REG_00_FIFO, buf, RFM69_FIFO_SIZE);
+        _rfm_read_burst(RFM69_REG_00_FIFO, buf, *len);
+        buf[*len] = '\0';
         /* Read RSSI register (should be of the packet? - TEST THIS) */
         _rfm_read_register(RFM69_REG_24_RSSI_VALUE, &res);
         *lastrssi = -(res/2);
@@ -234,6 +235,9 @@ THD_FUNCTION(RfmThread, arg)
     chThdSleepMilliseconds(1);
     palClearPad(GPIOA, GPIOA_RFM_RST);
 
+    // Wait a bit for the RFM to start up
+    chThdSleepMilliseconds(100);
+
     /* Set up device */
     for (i = 0; CONFIG[i][0] != 255; i++)
         _rfm_write_register(CONFIG[i][0], CONFIG[i][1]);
@@ -248,26 +252,26 @@ THD_FUNCTION(RfmThread, arg)
     _rfm_read_register(RFM69_REG_10_VERSION, &res);
     while(!res)
     {
-        chThdSleepMilliseconds(1000);
+        chThdSleepMilliseconds(100);
         chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
         _rfm_read_register(RFM69_REG_10_VERSION, &res);
     }
-
-    rfm_receive(rfm_buf, &len, &lastrssi, &packetwaiting);
 
     // Regularly poll the RFM for new packets, and if we get them,
     // post them to the ESP mailbox for uploading
     while(TRUE)
     {
         // Check for new packets
-        _rfm_read_register(RFM69_REG_28_IRQ_FLAGS2, &res);
         rfm_receive(rfm_buf, &len, &lastrssi, &packetwaiting);
         if(packetwaiting)
         {
+            palSetPad(GPIOC, GPIOC_LED_868);
             chprintf((BaseSequentialStream *)SDU1, "%s\r\n", (char *)rfm_buf);
+            esp_request(ESP_MSG_START, (char *)rfm_buf);
             packetwaiting = false;
         }
         chThdSleepMilliseconds(100);
+        palClearPad(GPIOC, GPIOC_LED_868);
     }
 }
 
