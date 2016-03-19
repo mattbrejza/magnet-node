@@ -21,13 +21,13 @@
 /**
  * Size of the request buffer for constructing data to be sent to the ESP
  */
-#define ESP_OUT_BUF_SIZE 256
+#define ESP_OUT_BUF_SIZE 512
 
 /**
  * Number of items in the ESP thread processing mailbox
  */
 
-#define MAILBOX_ITEMS 4
+#define MAILBOX_ITEMS 8
 /**
  * Operation codes
  */
@@ -40,6 +40,8 @@
 #define ESP_MSG_STATUS              0x07
 #define ESP_MSG_SEND                0x08
 #define ESP_MSG_START               0x09
+#define ESP_MSG_ECHOOFF             0x10
+#define ESP_MSG_CLOSE               0x11
 
 /**
  * Link status
@@ -62,8 +64,12 @@
 #define ESP_RESP_READY              "Ready"
 #define ESP_RESP_NOCHANGE           "no change\r\n"
 #define ESP_RESP_FAIL               "FAIL\r\n"
+#define ESP_RESP_ERROR              "ERROR"
+#define ESP_RESP_ERROR2             "Error"
 #define ESP_RESP_LINKED             "Linked\r\n"
+#define ESP_RESP_ALREADY_CONNECTED  "ALREAY CONNECT\r\n"
 #define ESP_RESP_UNLINK             "Unlink\r\n"
+#define ESP_RESP_NOLINK             "link is not\r\n"
 
 /**
  * These are the messages that are posted to the mailbox

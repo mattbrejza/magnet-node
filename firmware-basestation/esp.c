@@ -65,11 +65,32 @@ const char ESP_STRING_CRLF[] = "\r\n";
 const char ESP_STRING_STATUS[] = "AT+CIPSTATUS\r\n";
 const char ESP_STRING_SEND[] = "AT+CIPSEND=";
 const char ESP_STRING_START[] = "AT+CIPSTART=";
+const char ESP_STRING_ECHOOFF[] = "ATE0\r\n";
 const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: ";
 const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
 const char ESP_UPLOAD_CONTENT_ORIGIN[] = "origin=";
 const char ESP_UPLOAD_CONTENT_DATA[] = "&data=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
+
+/**
+ * Reset the ESP
+ */
+static void esp_reset(void)
+{
+    // Power off and go into reset
+    palClearPad(GPIOF, GPIOF_ESP_RST);
+    palClearPad(GPIOF, GPIOF_ESP_CHPD);
+
+    // GPIO0 should be high for normal mode (not bootloader)
+    palSetPad(GPIOA, GPIOA_ESP_GPIO0);
+
+    // Wait a little
+    chThdSleepMilliseconds(100);
+
+    // Power up the ESP
+    palSetPad(GPIOF, GPIOF_ESP_CHPD);
+    palSetPad(GPIOF, GPIOF_ESP_RST);
+}
 
 /**
  * Initialise the ESP by booting it in normal mode and setting up the USART to
@@ -84,19 +105,8 @@ static void esp_init(void)
     // Set up mailbox
     chMBObjectInit(&esp_mailbox, (msg_t *)mailbox_buffer, MAILBOX_ITEMS);
 
-    // Power off and go into reset
-    palClearPad(GPIOF, GPIOF_ESP_RST);
-    palClearPad(GPIOF, GPIOF_ESP_CHPD);
-
-    // GPIO0 should be high for normal mode (not bootloader)
-    palSetPad(GPIOA, GPIOA_ESP_GPIO0);
-
-    // Wait a little
-    chThdSleepMilliseconds(100);
-
-    // Power up the ESP
-    palSetPad(GPIOF, GPIOF_ESP_CHPD);
-    palSetPad(GPIOF, GPIOF_ESP_RST);
+    // Reset ESP
+    esp_reset();
 
     // Configure UART
     static const SerialConfig sc = {
@@ -136,6 +146,10 @@ static void esp_process_msg(esp_message_t* msg)
         case ESP_MSG_AT:
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_AT, 
                     strlen(ESP_STRING_AT), MS2ST(100));
+            break;
+        case ESP_MSG_ECHOOFF:
+            sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_ECHOOFF, 
+                    strlen(ESP_STRING_ECHOOFF), MS2ST(100));
             break;
         case ESP_MSG_RST:
             sdWriteTimeout(&SD1, (const uint8_t *)ESP_STRING_RST, 
@@ -200,10 +214,9 @@ static void esp_process_msg(esp_message_t* msg)
         case ESP_MSG_START:
             // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
             esp_out_buf_ptr = esp_out_buf;
-            chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n%s",
+            chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n",
                     ESP_STRING_START,
-                    UKHASNET_IP,
-                    curmsg->payload);
+                    UKHASNET_IP);
             sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                     strlen(esp_out_buf), MS2ST(500));
             chThdSleepMilliseconds(10);
@@ -228,7 +241,7 @@ void esp_request(uint32_t opcode, char* buf)
     // Construct the message (allow NULL pointers here)
     esp_message_t msg;
     msg.opcode = opcode;
-    if( buf != NULL)
+    if(buf != NULL)
         strncpy(msg.payload, buf, 64);
 
     // Allocate memory for it in the pool
@@ -239,10 +252,16 @@ void esp_request(uint32_t opcode, char* buf)
     memcpy(msg_in_pool, (void *)&msg, sizeof(esp_message_t));
 
     // Add to mailbox
-    retval = chMBPost(&esp_mailbox, (intptr_t)msg_in_pool, TIME_IMMEDIATE);
+    if(opcode == ESP_MSG_SEND || opcode == ESP_MSG_CLOSE)
+        retval = chMBPostAhead(&esp_mailbox, (intptr_t)msg_in_pool, TIME_IMMEDIATE);
+    else
+        retval = chMBPost(&esp_mailbox, (intptr_t)msg_in_pool, TIME_IMMEDIATE);
+
+    // Check MB response
     if( retval != MSG_OK )
     {
         // Something went wrong, free the memory and return
+        chprintf((BaseSequentialStream *)SDU1, "Error posting to mailbox\r\n");
         chPoolFree(&mailbox_mempool, msg_in_pool);
         return;
     }
@@ -284,7 +303,7 @@ static void esp_curmsg_delete(void)
  */
 static void esp_state_machine(void)
 {
-    char *bufptr, *bufptr2;
+    char *bufptr;
     uint8_t len;
     char user_print_buf[32];
 
@@ -297,12 +316,10 @@ static void esp_state_machine(void)
             {
                 // Find first \n
                 bufptr = strstr(esp_buffer, "\n");
-                bufptr2 = strstr(bufptr+1, "\n");
-                len = bufptr2 - bufptr;
-                strncpy(user_print_buf, bufptr+1, len);
+                len = bufptr - esp_buffer;
+                strncpy(user_print_buf, esp_buffer, len);
                 user_print_buf[len] = '\0';
-                chprintf((BaseSequentialStream*)SDU1, user_print_buf);
-                chprintf((BaseSequentialStream*)SDU1, "\r\n");
+                chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
                 esp_curmsg_delete();
             }
             break;
@@ -310,6 +327,13 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_READY))
             {
                 chprintf((BaseSequentialStream*)SDU1, "ESP reset successful\r\n");
+                esp_curmsg_delete();
+            }
+            break;
+        case ESP_MSG_ECHOOFF:
+            if(strstr(esp_buffer, ESP_RESP_OK))
+            {
+                chprintf((BaseSequentialStream*)SDU1, "ESP echo off\r\n");
                 esp_curmsg_delete();
             }
             break;
@@ -324,13 +348,11 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
                 // Find first \n
-                bufptr = strstr(esp_buffer, "\n");
-                bufptr2 = strstr(bufptr+1, "\n");
-                len = bufptr2 - bufptr;
-                strncpy(user_print_buf, bufptr+1, len);
+                bufptr = strstr(esp_buffer, "\r");
+                len = bufptr - esp_buffer;
+                strncpy(user_print_buf, esp_buffer, len);
                 user_print_buf[len] = '\0';
-                chprintf((BaseSequentialStream*)SDU1, user_print_buf);
-                chprintf((BaseSequentialStream*)SDU1, "\r\n");
+                chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
                 esp_curmsg_delete();
             }
             break;
@@ -350,25 +372,34 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
                 // Print first line of response from ESP only
-                bufptr = strstr(esp_buffer, "\n");
-                bufptr2 = strstr(bufptr+1, "\n");
-                len = bufptr2 - bufptr;
-                strncpy(user_print_buf, bufptr+1, len);
+                bufptr = strstr(esp_buffer, "\r");
+                len = bufptr - esp_buffer;
+                strncpy(user_print_buf, esp_buffer, len);
                 user_print_buf[len] = '\0';
-                chprintf((BaseSequentialStream*)SDU1, user_print_buf);
-                chprintf((BaseSequentialStream*)SDU1, "\r\n");
+                chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
                 // Update status struct with integer status value
-                esp_status.ipstatus = (uint8_t)(user_print_buf[len-3] - 48);
+                esp_status.ipstatus = (uint8_t)(user_print_buf[len-1] - 48);
                 esp_curmsg_delete();
             }
             break;
         case ESP_MSG_START:
-            if(strstr(esp_buffer, ESP_RESP_LINKED))
+            if(strstr(esp_buffer, ESP_RESP_LINKED) || 
+                    strstr(esp_buffer, ESP_RESP_ALREADY_CONNECTED))
             {
                 esp_status.linkstatus = ESP_LINKED;
+                chprintf((BaseSequentialStream*)SDU1, "Linked\r\n");
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
                 esp_request(ESP_MSG_SEND, curmsg->payload);
+                esp_curmsg_delete();
+            }
+            // If we get ERROR, or "link is not"; retry
+            else if(strstr(esp_buffer, ESP_RESP_ERROR) ||
+                    strstr(esp_buffer, ESP_RESP_NOLINK) ||
+                    strstr(esp_buffer, ESP_RESP_ERROR2))
+            {
+                chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
+                esp_request(ESP_MSG_START, curmsg->payload);
                 esp_curmsg_delete();
             }
             break;
@@ -376,6 +407,17 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_UNLINK))
             {
                 esp_status.linkstatus = ESP_NOTLINKED;
+                chprintf((BaseSequentialStream*)SDU1, "Unlinked\r\n");
+                palClearPad(GPIOC, GPIOC_LED_WIFI);
+                esp_curmsg_delete();
+            }
+            // If we get ERROR, or "link is not"; retry
+            else if(strstr(esp_buffer, ESP_RESP_ERROR) ||
+                    strstr(esp_buffer, ESP_RESP_NOLINK) ||
+                    strstr(esp_buffer, ESP_RESP_ERROR2))
+            {
+                chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
+                esp_request(ESP_MSG_START, curmsg->payload);
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
@@ -410,6 +452,9 @@ THD_FUNCTION(EspThread, arg)
     // Initialise start of buffer
     esp_buf_ptr = esp_buffer;
 
+    // Timer
+    systime_t timer;
+
     // Set initial esp status
     esp_status.linkstatus = ESP_NOTLINKED;
     esp_status.ipstatus = ESP_NOSTATUS;
@@ -419,6 +464,9 @@ THD_FUNCTION(EspThread, arg)
 
     //FIXME
     chsnprintf(esp_config.origin, 4, "%s", "JJ3");
+
+    // Turn off ESP ECHO
+    esp_request(ESP_MSG_ECHOOFF, NULL);
     
     // Loop forever for this thread
     while(TRUE)
@@ -432,9 +480,14 @@ THD_FUNCTION(EspThread, arg)
                 // Move into the buffer
                 // FIXME: Buffer overrun possible here
                 *esp_buf_ptr++ = newbyte;
-                // Deal with the state machine at the end of each line
+                // Deal with the state machine
                 if(newbyte == '\n')
                     esp_state_machine();
+            }
+            else if(chVTGetSystemTime() > timer + MS2ST(3000))
+            {
+                chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
+                esp_curmsg_delete();
             }
             else
             {
@@ -459,6 +512,7 @@ THD_FUNCTION(EspThread, arg)
 
             // Process this message
             curmsg = (esp_message_t *)msg;
+            timer = chVTGetSystemTime();
             esp_process_msg(curmsg);
         }
 

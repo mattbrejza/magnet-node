@@ -266,11 +266,12 @@ THD_FUNCTION(RfmThread, arg)
         if(packetwaiting)
         {
             palSetPad(GPIOC, GPIOC_LED_868);
-            chprintf((BaseSequentialStream *)SDU1, "%s\r\n", (char *)rfm_buf);
+            chprintf((BaseSequentialStream *)SDU1, "Packet: %s\r\n",
+                    rfm_buf);
             esp_request(ESP_MSG_START, (char *)rfm_buf);
             packetwaiting = false;
         }
-        chThdSleepMilliseconds(100);
+        chThdSleepMilliseconds(10);
         palClearPad(GPIOC, GPIOC_LED_868);
     }
 }

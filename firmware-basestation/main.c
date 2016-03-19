@@ -25,7 +25,7 @@
 
 static THD_WORKING_AREA(waBlinker, 128);
 static THD_WORKING_AREA(waUsbSer, 256);
-static THD_WORKING_AREA(waEsp, 256);
+static THD_WORKING_AREA(waEsp, 512);
 static THD_WORKING_AREA(waRFM, 256);
 
 /*

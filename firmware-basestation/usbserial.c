@@ -502,6 +502,10 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     {
         esp_request(ESP_MSG_START, "2aT19.0[JJJ]");
     }
+    else if(strcmp(argv[0], "eoff") == 0)
+    {
+        esp_request(ESP_MSG_ECHOOFF, NULL);
+    }
     else if(strcmp(argv[0], "setname") == 0)
     {
         esp_set_origin(argv[1]);
@@ -568,7 +572,7 @@ THD_FUNCTION(UsbSerThread, arg)
      * after a reset.
      */
     usbDisconnectBus(serusbcfg.usbp);
-    chThdSleepMilliseconds(1500);
+    chThdSleepMilliseconds(1000);
     usbStart(serusbcfg.usbp, &usbcfg);
     usbConnectBus(serusbcfg.usbp);
 
