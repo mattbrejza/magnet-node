@@ -216,6 +216,7 @@ static rfm_status_t rfm_receive(rfm_reg_t* buf, rfm_reg_t* len, int16_t* lastrss
 THD_FUNCTION(RfmThread, arg)
 {
     (void)arg;
+    chRegSetThreadName("rfm");
     uint8_t i;
     rfm_reg_t res, len;
     int16_t lastrssi;

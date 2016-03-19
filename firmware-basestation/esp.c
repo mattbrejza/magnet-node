@@ -387,7 +387,6 @@ static void esp_state_machine(void)
                     strstr(esp_buffer, ESP_RESP_ALREADY_CONNECTED))
             {
                 esp_status.linkstatus = ESP_LINKED;
-                chprintf((BaseSequentialStream*)SDU1, "Linked\r\n");
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
                 esp_request(ESP_MSG_SEND, curmsg->payload);
@@ -407,7 +406,6 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_UNLINK))
             {
                 esp_status.linkstatus = ESP_NOTLINKED;
-                chprintf((BaseSequentialStream*)SDU1, "Unlinked\r\n");
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
@@ -436,6 +434,7 @@ static void esp_state_machine(void)
 THD_FUNCTION(EspThread, arg)
 {
     (void)arg;
+    chRegSetThreadName("esp");
     
     // Result of mailbox operations
     msg_t mailbox_res;

@@ -346,23 +346,35 @@ static void cmd_mem(BaseSequentialStream *chp, int argc, char *argv[]) {
 }
 
 static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
-    static const char *states[] = {CH_STATE_NAMES};
-    thread_t *tp;
+  static const char *states[] = {CH_STATE_NAMES};
+  uint64_t busy = 0, total = 0;
+  thread_t *tp;
 
-    (void)argv;
-    if (argc > 0) {
-        chprintf(chp, "Usage: threads\r\n");
-        return;
+  (void)argv;
+  if (argc > 0) {
+    chprintf(chp, "Usage: threads\r\n");
+    return;
+  }
+
+  chprintf(chp,
+    "name        |addr    |stack   |free|prio|refs|state    |time\r\n");
+  chprintf(chp,
+    "------------|--------|--------|----|----|----|---------|--------\r\n");
+  tp = chRegFirstThread();
+  do {
+    chprintf(chp, "%12s|%.8lx|%.8lx|%4lu|%4lu|%4lu|%9s|%lu\r\n",
+            chRegGetThreadNameX(tp),
+            (uint32_t)tp, (uint32_t)tp->p_ctx.r13,
+            (uint32_t)tp->p_ctx.r13 - (uint32_t)tp->p_stklimit,
+            (uint32_t)tp->p_prio, (uint32_t)(tp->p_refs - 1),
+            states[tp->p_state], (uint32_t)tp->p_time);
+    if(tp->p_prio != 1) {
+        busy += tp->p_time;
     }
-    chprintf(chp, "    addr    stack prio refs     state\r\n");
-    tp = chRegFirstThread();
-    do {
-        chprintf(chp, "%08lx %08lx %4lu %4lu %9s %lu\r\n",
-                (uint32_t)tp, (uint32_t)tp->p_ctx.r13,
-                (uint32_t)tp->p_prio, (uint32_t)(tp->p_refs - 1),
-                states[tp->p_state]);
-        tp = chRegNextThread(tp);
-    } while (tp != NULL);
+    total += tp->p_time;
+    tp = chRegNextThread(tp);
+  } while (tp != NULL);
+  chprintf(chp, "CPU Usage: %ld%%\r\n", busy*100/total);
 }
 
 /**
