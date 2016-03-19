@@ -1,0 +1,3 @@
+[submodule ".\\firmware-35\\libopencm3"]
+	path = .\\firmware-35\\libopencm3
+	url = https://github.com/libopencm3/libopencm3
