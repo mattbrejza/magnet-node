@@ -273,7 +273,8 @@ void esp_request(uint32_t opcode, char* buf)
     if( retval != MSG_OK )
     {
         // Something went wrong, free the memory and return
-        chprintf((BaseSequentialStream *)SDU1, "Error posting to mailbox\r\n");
+        if(shell_get_level() >= LEVEL_DEBUG)
+            chprintf((BaseSequentialStream *)SDU1, "Error posting to mailbox\r\n");
         chPoolFree(&mailbox_mempool, msg_in_pool);
         return;
     }
@@ -388,7 +389,6 @@ static void esp_state_machine(void)
                 len = bufptr - esp_buffer;
                 strncpy(user_print_buf, esp_buffer, len);
                 user_print_buf[len] = '\0';
-                //chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
                 // Update status struct with integer status value
                 esp_status.ipstatus = (uint8_t)(user_print_buf[len-1] - 48);
                 esp_curmsg_delete();
@@ -409,7 +409,8 @@ static void esp_state_machine(void)
                     strstr(esp_buffer, ESP_RESP_NOLINK) ||
                     strstr(esp_buffer, ESP_RESP_ERROR2))
             {
-                chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
+                if(shell_get_level() >= LEVEL_DEBUG)
+                    chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
                 esp_request(ESP_MSG_START, curmsg->payload);
                 esp_curmsg_delete();
             }
@@ -426,14 +427,16 @@ static void esp_state_machine(void)
                     strstr(esp_buffer, ESP_RESP_NOLINK) ||
                     strstr(esp_buffer, ESP_RESP_ERROR2))
             {
-                chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
+                if(shell_get_level() >= LEVEL_DEBUG)
+                    chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
                 esp_request(ESP_MSG_START, curmsg->payload);
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
             break;
         default:
-            chprintf((BaseSequentialStream*)SDU1, "Fatal, esp state not reset!\r\n");
+            if(shell_get_level() >= LEVEL_DEBUG)
+                chprintf((BaseSequentialStream*)SDU1, "Fatal, esp state not reset!\r\n");
             return;
     }
 }
@@ -501,7 +504,8 @@ THD_FUNCTION(EspThread, arg)
             }
             else if(chVTGetSystemTime() > timeout_timer + MS2ST(1500))
             {
-                chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
+                if(shell_get_level() >= LEVEL_DEBUG)
+                    chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
                 esp_curmsg_delete();
             }
             else

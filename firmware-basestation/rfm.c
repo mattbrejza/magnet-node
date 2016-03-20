@@ -259,7 +259,8 @@ THD_FUNCTION(RfmThread, arg)
     while(!res)
     {
         chThdSleepMilliseconds(100);
-        chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
+        if(shell_get_level() >= LEVEL_DEBUG)
+            chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
         _rfm_read_register(RFM69_REG_10_VERSION, &res);
     }
 
@@ -273,7 +274,8 @@ THD_FUNCTION(RfmThread, arg)
         {
             palSetPad(GPIOC, GPIOC_LED_868);
             led_timer = chVTGetSystemTime();
-            chprintf((BaseSequentialStream *)SDU1, "Packet: %s\r\n",
+            if(shell_get_level() >= LEVEL_PACKET)
+                chprintf((BaseSequentialStream *)SDU1, "Packet: %s\r\n",
                     rfm_buf);
             esp_request(ESP_MSG_START, (char *)rfm_buf);
             packetwaiting = false;

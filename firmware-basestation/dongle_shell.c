@@ -19,6 +19,7 @@
 #include "shell.h"
 #include "chprintf.h"
 
+#include "dongle_shell.h"
 #include "esp.h"
 
 /*===========================================================================*/
@@ -36,6 +37,11 @@
  * Serial over USB Driver structure.
  */
 static SerialUSBDriver SDU1;
+
+/**
+ * Print level
+ */
+static uint8_t _level;
 
 /*
  * USB Device Descriptor.
@@ -325,6 +331,22 @@ static SerialUSBConfig serusbcfg = {
     USBD1_INTERRUPT_REQUEST_EP
 };
 
+/**
+ * Set print level
+ */
+static void shell_set_level(uint8_t newlevel)
+{
+    _level = newlevel;
+}
+
+/**
+ * Get print level
+ */
+uint8_t shell_get_level(void)
+{
+    return _level;
+}
+
 /*===========================================================================*/
 /* Command line related.                                                     */
 /*===========================================================================*/
@@ -529,10 +551,25 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     }
 }
 
+static void cmd_show(BaseSequentialStream *chp, int argc, char *argv[]) {
+    if(argc < 1)
+    {
+        chprintf(chp, "Usage: show [none|packet|debug]\r\n");
+        return;
+    }
+    if(strcmp(argv[0], "none") == 0)
+        shell_set_level(LEVEL_NONE);
+    else if(strcmp(argv[0], "packet") == 0)
+        shell_set_level(LEVEL_PACKET);
+    else if(strcmp(argv[0], "debug") == 0)
+        shell_set_level(LEVEL_DEBUG);
+}
+
 static const ShellCommand commands[] = {
     {"mem", cmd_mem},
     {"threads", cmd_threads},
     {"esp", cmd_esp},
+    {"show", cmd_show},
     {NULL, NULL}
 };
 
@@ -571,6 +608,11 @@ THD_FUNCTION(UsbSerThread, arg)
 {
     (void)arg;
     thread_t *shelltp = NULL;
+
+    /*
+     * Level initially none
+     */
+    _level = LEVEL_NONE;
 
     /*
      * Initializes a serial-over-USB CDC driver.
