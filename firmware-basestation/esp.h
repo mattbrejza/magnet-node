@@ -35,6 +35,20 @@
 #define FLASH_STORAGE_LEN           0x400
 #define FLASH_PAGE_SIZE             0x400
 
+/* Maximal length of the node name */
+#define ORIGIN_LEN_MAX              32
+
+/* Maximal length of the wifi SSID */
+#define SSID_LEN_MAX                32
+
+/* Maximal length of the password */
+#define PASS_LEN_MAX                32
+
+#define FLASH_ORIGIN                FLASH_STORAGE_ADDR
+#define FLASH_SSID                  FLASH_STORAGE_ADDR + ORIGIN_LEN_MAX
+#define FLASH_PASS                  FLASH_STORAGE_ADDR + SSID_LEN_MAX
+#define FLASH_VALID                 FLASH_STORAGE_ADDR + PASS_LEN_MAX
+
 #define MMIO16(addr)                (*(volatile uint16_t *)(addr))
 #define MMIO32(addr)                (*(volatile uint32_t *)(addr))
 
@@ -132,14 +146,16 @@ typedef struct esp_status_t {
  * system boot.
  */
 typedef struct esp_config_t {
-    char origin[16];
-    char ssid[16];
-    char pass[16];
+    char origin[ORIGIN_LEN_MAX];
+    char ssid[SSID_LEN_MAX];
+    char pass[PASS_LEN_MAX];
+    uint32_t valid;
 } esp_config_t;
 
 void esp_request(uint32_t opcode, char* buf);
 void esp_set_origin(char *neworigin);
 uint8_t esp_get_status(void);
+esp_config_t * esp_get_config(void);
 THD_FUNCTION(EspThread, arg);
 
 #endif /* __ESP_H__ */

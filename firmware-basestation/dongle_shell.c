@@ -402,10 +402,14 @@ static void cmd_threads(BaseSequentialStream *chp, int argc, char *argv[]) {
 /**
  * Passthrough interface for the ESP device
  */
-static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
+static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
+{
+    esp_config_t* esp_config;
+
+    // Check args
     if(argc < 1)
     {
-        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [join <ssid> <pass>] [setname <name>]\r\n");
+        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [join <ssid> <pass>] [origin <name>]\r\n");
         return;
     }
 
@@ -540,11 +544,19 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     {
         esp_request(ESP_MSG_ECHOOFF, NULL);
     }
-    else if(strcmp(argv[0], "setname") == 0)
+    else if(strcmp(argv[0], "origin") == 0)
     {
-        esp_set_origin(argv[1]);
-        chprintf(chp, "New origin: %s\r\n", argv[1]);
-    } /* argv[0] is setname */
+        if(argc == 1)
+        {
+            esp_config = esp_get_config();
+            chprintf(chp, "Origin: %s\r\n", esp_config->origin);
+        }
+        else
+        {
+            esp_set_origin(argv[1]);
+            chprintf(chp, "New origin: %s\r\n", argv[1]);
+        }
+    } /* argv[0] is origin */
     else
     {
         chprintf(chp, "Command not recognised\r\n");

@@ -135,15 +135,21 @@ static void write_config(esp_config_t* config)
 
     // Write node name
     for(i = 0; i < 4; i++)
-        flash_program_word(FLASH_STORAGE_ADDR, *(uint32_t *)(config->origin + 4*i));
+        flash_program_word(FLASH_ORIGIN + 4*i,
+                *(uint32_t *)(config->origin + 4*i));
 
     // Write ssid
     for(i = 0; i < 4; i++)
-        flash_program_word(FLASH_STORAGE_ADDR+16, *(uint32_t *)(config->ssid + 4*i));
+        flash_program_word(FLASH_SSID + 4*i,
+                *(uint32_t *)(config->ssid + 4*i));
 
     // Write pass
     for(i = 0; i < 4; i++)
-        flash_program_word(FLASH_STORAGE_ADDR+32, *(uint32_t *)(config->pass + 4*i));
+        flash_program_word(FLASH_PASS + 4*i,
+                *(uint32_t *)(config->pass + 4*i));
+
+    // Write valid
+    flash_program_word(FLASH_VALID, (uint32_t)(config->valid));
 
     flash_lock();
 }
@@ -157,9 +163,28 @@ static void read_config(esp_config_t* config)
     ptr = (uint32_t *)config->origin;
     for(i = 0; i < 4; i++)
     {
-        *ptr = *(uint32_t *)(FLASH_STORAGE_ADDR + 4*i);
+        *ptr = *(uint32_t *)(FLASH_ORIGIN + 4*i);
         ptr += 4;
     }
+
+    // SSID
+    ptr = (uint32_t *)config->ssid;
+    for(i = 0; i < 4; i++)
+    {
+        *ptr = *(uint32_t *)(FLASH_SSID + 4*i);
+        ptr += 4;
+    }
+
+    // Node name
+    ptr = (uint32_t *)config->pass;
+    for(i = 0; i < 4; i++)
+    {
+        *ptr = *(uint32_t *)(FLASH_PASS + 4*i);
+        ptr += 4;
+    }
+
+    // Validity
+    config->valid = *(uint32_t *)(FLASH_VALID);
 }
 
 /**
@@ -215,7 +240,9 @@ static void esp_init(void)
  */
 void esp_set_origin(char *neworigin)
 {
-    chsnprintf(esp_config.origin, 16, "%s", neworigin);
+    chsnprintf(esp_config.origin, ORIGIN_LEN_MAX, "%s", neworigin);
+    esp_config.valid = 1;
+    write_config(&esp_config);
 }
 
 /**
@@ -224,6 +251,14 @@ void esp_set_origin(char *neworigin)
 uint8_t esp_get_status(void)
 {
     return esp_status.ipstatus;
+}
+
+/**
+ * Get config
+ */
+esp_config_t * esp_get_config(void)
+{
+    return &esp_config;
 }
 
 /**
@@ -569,10 +604,13 @@ THD_FUNCTION(EspThread, arg)
     SDU1 = usb_get_sdu();
 
     //FIXME
-    chsnprintf(esp_config.origin, 16, "%s", "JJ3");
-    chsnprintf(esp_config.ssid, 16, "%s", "UKHAS");
-    chsnprintf(esp_config.pass, 16, "%s", "ukhasnet");
-    //write_config(&esp_config);
+    read_config(&esp_config);
+    if(!esp_config.valid)
+    {
+        chsnprintf(esp_config.origin, ORIGIN_LEN_MAX, "%s", "JJ3");
+        chsnprintf(esp_config.ssid, SSID_LEN_MAX, "%s", "UKHAS");
+        chsnprintf(esp_config.pass, PASS_LEN_MAX, "%s", "ukhasnet");
+    }
 
     // Turn off ESP ECHO and enable station mode
     esp_request(ESP_MSG_ECHOOFF, NULL);
@@ -644,12 +682,6 @@ THD_FUNCTION(EspThread, arg)
             // Update esp_status.ipstatus
             esp_request(ESP_MSG_STATUS, NULL);
             esp_status_timer = chVTGetSystemTime();
-
-            // FIXME
-            //read_config(&esp_config);
-            if(shell_get_level() >= LEVEL_DEBUG)
-                chprintf((BaseSequentialStream *)SDU1, "Origin: %s\r\n", 
-                        esp_config.origin);
         }
     }
 }
