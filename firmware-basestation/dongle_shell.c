@@ -409,7 +409,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     // Check args
     if(argc < 1)
     {
-        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [join <ssid> <pass>] [origin <name>]\r\n");
+        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [ap <ssid> <pass>] [origin <name>]\r\n");
         return;
     }
 
@@ -510,29 +510,39 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     {
         esp_request(ESP_MSG_IP, NULL);
     } /* argv[0] is ip */
-    else if(strcmp(argv[0], "join") == 0)
+    else if(strcmp(argv[0], "ap") == 0)
     {
-        if(argc != 3)
+        if(argc == 3)
         {
-            chprintf(chp, "Usage: esp join <ssid> <pass>\r\n");
+            // TODO: Check length of args !>64 bytes
+            char tbuf[64];
+            char *tbuf_ptr = tbuf;
+            *tbuf_ptr++ = '"';
+            strcpy(tbuf_ptr, argv[1]);
+            tbuf_ptr += strlen(tbuf_ptr);
+            *tbuf_ptr++ = '"';
+            *tbuf_ptr++ = ',';
+            *tbuf_ptr++ = '"';
+            strcpy(tbuf_ptr, argv[2]);
+            tbuf_ptr += strlen(tbuf_ptr);
+            *tbuf_ptr++ = '"';
+            *tbuf_ptr++ = '\0';
+            esp_set_ssid_pass(argv[1], argv[2]);
+            esp_request(ESP_MSG_JOIN, tbuf);
+        } 
+        else if(argc == 1)
+        {
+            esp_config = esp_get_config();
+            chprintf(chp, "SSID: %s, pass: %s\r\n",
+                    esp_config->ssid,
+                    esp_config->pass);
+        } 
+        else 
+        {
+            chprintf(chp, "Usage: esp ap [<ssid> <pass>]\r\n");
             return;
         }
-        // TODO: Check length of args !>64 bytes
-        char tbuf[64];
-        char *tbuf_ptr = tbuf;
-        *tbuf_ptr++ = '"';
-        strcpy(tbuf_ptr, argv[1]);
-        tbuf_ptr += strlen(tbuf_ptr);
-        *tbuf_ptr++ = '"';
-        *tbuf_ptr++ = ',';
-        *tbuf_ptr++ = '"';
-        strcpy(tbuf_ptr, argv[2]);
-        tbuf_ptr += strlen(tbuf_ptr);
-        *tbuf_ptr++ = '"';
-        *tbuf_ptr++ = '\0';
-        esp_set_ssid_pass(argv[1], argv[2]);
-        esp_request(ESP_MSG_JOIN, tbuf);
-    } /* argv[0] is join */
+    } /* argv[0] is ap */
     else if(strcmp(argv[0], "status") == 0)
     {
         chprintf(chp, "Status: %d\r\n", esp_get_status());
@@ -589,11 +599,18 @@ static void cmd_show(BaseSequentialStream *chp, int argc, char *argv[]) {
     }
 }
 
+static void cmd_ver(BaseSequentialStream *chp, int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    chprintf(chp, "Version: %s\r\n", FW_VERSION);
+}
+
 static const ShellCommand commands[] = {
     {"mem", cmd_mem},
     {"threads", cmd_threads},
     {"esp", cmd_esp},
     {"show", cmd_show},
+    {"ver", cmd_ver},
     {NULL, NULL}
 };
 

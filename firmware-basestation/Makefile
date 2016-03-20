@@ -192,7 +192,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS =
+UDEFS = -D FW_VERSION=\"$(shell git describe --dirty --always)\"
 
 # Define ASM defines here
 UADEFS =
