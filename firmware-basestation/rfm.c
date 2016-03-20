@@ -39,6 +39,7 @@ static const SPIConfig rfm_spicfg = {
 // Track the current radio mode
 static rfm_reg_t _mode;
 
+// Serial driver
 static SerialUSBDriver *SDU1;
 
 /**
@@ -221,6 +222,7 @@ THD_FUNCTION(RfmThread, arg)
     rfm_reg_t res, len;
     int16_t lastrssi;
     bool packetwaiting;
+    systime_t led_timer;
     
     packetwaiting = false;
     
@@ -247,6 +249,9 @@ THD_FUNCTION(RfmThread, arg)
     _mode = RFM69_MODE_RX;
     rfm_setmode(_mode);
 
+    /* Track time between LED flashes */
+    led_timer = chVTGetSystemTime();
+
     /* Zero version number, RFM probably not
      * connected/functioning */
     res = 0;
@@ -267,13 +272,15 @@ THD_FUNCTION(RfmThread, arg)
         if(packetwaiting)
         {
             palSetPad(GPIOC, GPIOC_LED_868);
+            led_timer = chVTGetSystemTime();
             chprintf((BaseSequentialStream *)SDU1, "Packet: %s\r\n",
                     rfm_buf);
             esp_request(ESP_MSG_START, (char *)rfm_buf);
             packetwaiting = false;
         }
         chThdSleepMilliseconds(1);
-        palClearPad(GPIOC, GPIOC_LED_868);
+        if(chVTGetSystemTime() > led_timer + MS2ST(500))
+            palClearPad(GPIOC, GPIOC_LED_868);
     }
 }
 
