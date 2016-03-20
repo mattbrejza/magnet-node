@@ -329,7 +329,10 @@ static void esp_process_msg(esp_message_t* msg)
             break;
         case ESP_MSG_SEND:
             // Send the (up to) 64 byte message in the payload to the server
-            contentlen = strlen(curmsg->payload);
+            contentlen = strlen(curmsg->payload)
+                + strlen(ESP_UPLOAD_CONTENT_ORIGIN)
+                + strlen(ESP_UPLOAD_CONTENT_DATA)
+                + strlen(esp_config.origin);
             chsnprintf(contentlen_s, 3, "%u", contentlen);
             // Reset buf pointer
             esp_out_buf_ptr = esp_out_buf;
@@ -351,10 +354,7 @@ static void esp_process_msg(esp_message_t* msg)
             // Reset buf pointer
             esp_out_buf_ptr = esp_out_buf;
             chsnprintf(esp_out_buf_ptr, 512, "%s%u%s%s%s%s%s", ESP_UPLOAD_START,
-                    contentlen 
-                        + strlen(ESP_UPLOAD_CONTENT_ORIGIN)
-                        + strlen(ESP_UPLOAD_CONTENT_DATA)
-                        + strlen(esp_config.origin),
+                    contentlen,
                     ESP_UPLOAD_END,
                     ESP_UPLOAD_CONTENT_ORIGIN,
                     esp_config.origin,
