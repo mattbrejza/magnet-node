@@ -26,8 +26,8 @@
 /**
  * Number of items in the ESP thread processing mailbox
  */
-
 #define MAILBOX_ITEMS 8
+
 /**
  * Operation codes
  */
@@ -104,6 +104,7 @@ typedef struct esp_config_t {
 
 void esp_request(uint32_t opcode, char* buf);
 void esp_set_origin(char *neworigin);
+uint8_t esp_get_status(void);
 THD_FUNCTION(EspThread, arg);
 
 #endif /* __ESP_H__ */

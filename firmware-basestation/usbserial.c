@@ -508,7 +508,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
     } /* argv[0] is join */
     else if(strcmp(argv[0], "status") == 0)
     {
-        esp_request(ESP_MSG_STATUS, NULL);
+        chprintf(chp, "Status: %d\r\n", esp_get_status());
     } /* argv[0] is status */
     else if(strcmp(argv[0], "testsend") == 0)
     {

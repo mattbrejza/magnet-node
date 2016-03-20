@@ -129,6 +129,14 @@ void esp_set_origin(char *neworigin)
 }
 
 /**
+ * Get the current ESP status
+ */
+uint8_t esp_get_status(void)
+{
+    return esp_status.ipstatus;
+}
+
+/**
  * We got a message from somewhere, do something with it
  */
 static void esp_process_msg(esp_message_t* msg)
@@ -212,14 +220,22 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(esp_out_buf), MS2ST(500));
             break;
         case ESP_MSG_START:
-            // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
-            esp_out_buf_ptr = esp_out_buf;
-            chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n",
-                    ESP_STRING_START,
-                    UKHASNET_IP);
-            sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
-                    strlen(esp_out_buf), MS2ST(500));
-            chThdSleepMilliseconds(10);
+            // If not connected, abort this and try and connect
+            if(esp_status.ipstatus > 1 && esp_status.ipstatus < 5)
+            {
+                // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
+                esp_out_buf_ptr = esp_out_buf;
+                chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n",
+                        ESP_STRING_START,
+                        UKHASNET_IP);
+                sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
+                        strlen(esp_out_buf), MS2ST(500));
+                chThdSleepMilliseconds(10);
+            }
+            else
+            {
+                chprintf((BaseSequentialStream *)SDU1, "Not associated! Use \"esp join <ssid> <pass>\"\r\n");
+            }
             break;
         default:
             curmsg = NULL;
@@ -376,7 +392,7 @@ static void esp_state_machine(void)
                 len = bufptr - esp_buffer;
                 strncpy(user_print_buf, esp_buffer, len);
                 user_print_buf[len] = '\0';
-                chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
+                //chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
                 // Update status struct with integer status value
                 esp_status.ipstatus = (uint8_t)(user_print_buf[len-1] - 48);
                 esp_curmsg_delete();
@@ -451,8 +467,10 @@ THD_FUNCTION(EspThread, arg)
     // Initialise start of buffer
     esp_buf_ptr = esp_buffer;
 
-    // Timer
-    systime_t timer;
+    // Timers
+    systime_t timeout_timer;
+    systime_t esp_status_timer;
+    esp_status_timer = chVTGetSystemTime();
 
     // Set initial esp status
     esp_status.linkstatus = ESP_NOTLINKED;
@@ -467,7 +485,8 @@ THD_FUNCTION(EspThread, arg)
     // Turn off ESP ECHO and enable station mode
     esp_request(ESP_MSG_ECHOOFF, NULL);
     esp_request(ESP_MSG_CWMODE, NULL);
-    
+    esp_request(ESP_MSG_STATUS, NULL);
+
     // Loop forever for this thread
     while(TRUE)
     {
@@ -484,7 +503,7 @@ THD_FUNCTION(EspThread, arg)
                 if(newbyte == '\n')
                     esp_state_machine();
             }
-            else if(chVTGetSystemTime() > timer + MS2ST(3000))
+            else if(chVTGetSystemTime() > timeout_timer + MS2ST(1500))
             {
                 chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
@@ -513,10 +532,16 @@ THD_FUNCTION(EspThread, arg)
 
             // Process this message
             curmsg = (esp_message_t *)msg;
-            timer = chVTGetSystemTime();
+            timeout_timer = chVTGetSystemTime();
             esp_process_msg(curmsg);
         }
 
+        // If more than 1 second has passed, update the status
+        if(chVTGetSystemTime() - esp_status_timer > MS2ST(1000))
+        {
+            esp_request(ESP_MSG_STATUS, NULL);
+            esp_status_timer = chVTGetSystemTime();
+        }
     }
 }
 
