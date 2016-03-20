@@ -44,10 +44,14 @@
 /* Maximal length of the password */
 #define PASS_LEN_MAX                32
 
+/* Validity bits */
+#define ORIGIN_VALID                (1<<0)
+#define SSID_PASS_VALID             (1<<1)
+
 #define FLASH_ORIGIN                FLASH_STORAGE_ADDR
 #define FLASH_SSID                  FLASH_STORAGE_ADDR + ORIGIN_LEN_MAX
-#define FLASH_PASS                  FLASH_STORAGE_ADDR + SSID_LEN_MAX
-#define FLASH_VALID                 FLASH_STORAGE_ADDR + PASS_LEN_MAX
+#define FLASH_PASS                  FLASH_SSID + SSID_LEN_MAX
+#define FLASH_VALID                 FLASH_PASS + PASS_LEN_MAX
 
 #define MMIO16(addr)                (*(volatile uint16_t *)(addr))
 #define MMIO32(addr)                (*(volatile uint32_t *)(addr))
@@ -149,11 +153,12 @@ typedef struct esp_config_t {
     char origin[ORIGIN_LEN_MAX];
     char ssid[SSID_LEN_MAX];
     char pass[PASS_LEN_MAX];
-    uint32_t valid;
+    uint32_t validity;
 } esp_config_t;
 
 void esp_request(uint32_t opcode, char* buf);
 void esp_set_origin(char *neworigin);
+void esp_set_ssid_pass(char* ssid, char* pass);
 uint8_t esp_get_status(void);
 esp_config_t * esp_get_config(void);
 THD_FUNCTION(EspThread, arg);

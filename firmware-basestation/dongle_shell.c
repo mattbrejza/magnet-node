@@ -530,6 +530,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
         tbuf_ptr += strlen(tbuf_ptr);
         *tbuf_ptr++ = '"';
         *tbuf_ptr++ = '\0';
+        esp_set_ssid_pass(argv[1], argv[2]);
         esp_request(ESP_MSG_JOIN, tbuf);
     } /* argv[0] is join */
     else if(strcmp(argv[0], "status") == 0)
