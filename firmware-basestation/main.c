@@ -16,10 +16,10 @@
 #include "hal.h"
 #include "hal_channels.h"
 
-#include "shell.h"
+#include "dongle_shell.h"
 #include "chprintf.h"
 
-#include "usbserial.h"
+#include "dongle_shell.h"
 #include "esp.h"
 #include "rfm.h"
 

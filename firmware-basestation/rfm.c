@@ -15,7 +15,7 @@
 #include "chprintf.h"
 #include "hal.h"
 
-#include "usbserial.h"
+#include "dongle_shell.h"
 #include "esp.h"
 #include "rfm.h"
 

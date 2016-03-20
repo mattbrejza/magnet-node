@@ -16,7 +16,7 @@
 #include "hal.h"
 
 #include "esp.h"
-#include "usbserial.h"
+#include "dongle_shell.h"
 
 static SerialUSBDriver *SDU1;
 static esp_status_t esp_status;
