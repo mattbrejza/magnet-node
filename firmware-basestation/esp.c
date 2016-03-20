@@ -256,11 +256,29 @@ uint8_t esp_get_status(void)
 }
 
 /**
+ * Get current IP address
+ */
+char* esp_get_ip(void)
+{
+    return esp_status.ip;
+}
+
+/**
  * Get config
  */
 esp_config_t * esp_get_config(void)
 {
     return &esp_config;
+}
+
+/**
+ * Remove the message content from the memory pool and set curmsg=NULL
+ * once we have finished with it
+ */
+static void esp_curmsg_delete(void)
+{
+    chPoolFree(&mailbox_mempool, (void *)curmsg);
+    curmsg = NULL;
 }
 
 /**
@@ -347,8 +365,10 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(esp_out_buf), MS2ST(500));
             break;
         case ESP_MSG_START:
-            // If not connected, abort this and try and connect
-            if(esp_status.ipstatus > 1 && esp_status.ipstatus < 5)
+            // If not connected or have no IP, abort this and try and connect
+            if(esp_status.ipstatus > 1 && esp_status.ipstatus < 5 
+                    && strcmp(esp_status.ip, "") != 0
+                    && strncmp(esp_status.ip, "0.0.0.0", 8) != 0)
             {
                 // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
                 esp_out_buf_ptr = esp_out_buf;
@@ -358,6 +378,11 @@ static void esp_process_msg(esp_message_t* msg)
                 sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                         strlen(esp_out_buf), MS2ST(500));
                 chThdSleepMilliseconds(10);
+            }
+            else
+            {
+                /* Drop this since no connection/no ip */
+                esp_curmsg_delete();
             }
             break;
         default:
@@ -429,16 +454,6 @@ static size_t esp_receive_byte(char* buf)
 }
 
 /**
- * Remove the message content from the memory pool and set curmsg=NULL
- * once we have finished with it
- */
-static void esp_curmsg_delete(void)
-{
-    chPoolFree(&mailbox_mempool, (void *)curmsg);
-    curmsg = NULL;
-}
-
-/**
  * The state machine that handles incoming messages
  */
 static void esp_state_machine(void)
@@ -492,7 +507,7 @@ static void esp_state_machine(void)
                 len = bufptr - esp_buffer;
                 strncpy(user_print_buf, esp_buffer, len);
                 user_print_buf[len] = '\0';
-                chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
+                strncpy(esp_status.ip, user_print_buf, 16);
                 esp_curmsg_delete();
             }
             break;
@@ -675,15 +690,18 @@ THD_FUNCTION(EspThread, arg)
         }
 
         // If more than 1 second has passed, update the status
-        if(chVTGetSystemTime() - esp_status_timer > MS2ST(1000))
+        if(chVTGetSystemTime() - esp_status_timer > MS2ST(2000))
         {
             // Change LED
-            if(esp_status.ipstatus > 1 && esp_status.ipstatus < 5)
+            if(esp_status.ipstatus > 1 && esp_status.ipstatus < 5
+                    && strcmp(esp_status.ip, "") != 0
+                    && strncmp(esp_status.ip, "0.0.0.0", 8) != 0)
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
             else
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
             // Update esp_status.ipstatus
             esp_request(ESP_MSG_STATUS, NULL);
+            esp_request(ESP_MSG_IP, NULL);
             esp_status_timer = chVTGetSystemTime();
         }
     }

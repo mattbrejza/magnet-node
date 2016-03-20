@@ -139,6 +139,7 @@ typedef struct esp_message_t {
 typedef struct esp_status_t {
     uint8_t ipstatus;
     uint8_t linkstatus;
+    char ip[16];
 } esp_status_t;
 
 /**
@@ -160,6 +161,7 @@ void esp_request(uint32_t opcode, char* buf);
 void esp_set_origin(char *neworigin);
 void esp_set_ssid_pass(char* ssid, char* pass);
 uint8_t esp_get_status(void);
+char* esp_get_ip(void);
 esp_config_t * esp_get_config(void);
 THD_FUNCTION(EspThread, arg);
 

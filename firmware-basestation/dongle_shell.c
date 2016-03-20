@@ -508,7 +508,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     } /* argv[0] is reset */
     else if(strcmp(argv[0], "ip") == 0)
     {
-        esp_request(ESP_MSG_IP, NULL);
+        chprintf(chp, "Status: %s\r\n", esp_get_ip());
     } /* argv[0] is ip */
     else if(strcmp(argv[0], "ap") == 0)
     {
