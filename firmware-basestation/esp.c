@@ -636,7 +636,7 @@ THD_FUNCTION(EspThread, arg)
                 if(newbyte == '\n')
                     esp_state_machine();
             }
-            else if(chVTGetSystemTime() > timeout_timer + MS2ST(1500))
+            else if(chVTGetSystemTime() > timeout_timer + MS2ST(5000))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
