@@ -125,6 +125,43 @@ static void flash_erase_page(uint32_t page_address)
     FLASH_CR &= ~FLASH_CR_PER;
 }
 
+static void write_config(esp_config_t* config)
+{
+    uint8_t i;
+
+    // Erase the current settings
+    flash_unlock();
+    flash_erase_page(FLASH_STORAGE_ADDR);
+
+    // Write node name
+    for(i = 0; i < 4; i++)
+        flash_program_word(FLASH_STORAGE_ADDR, *(uint32_t *)(config->origin + 4*i));
+
+    // Write ssid
+    for(i = 0; i < 4; i++)
+        flash_program_word(FLASH_STORAGE_ADDR+16, *(uint32_t *)(config->ssid + 4*i));
+
+    // Write pass
+    for(i = 0; i < 4; i++)
+        flash_program_word(FLASH_STORAGE_ADDR+32, *(uint32_t *)(config->pass + 4*i));
+
+    flash_lock();
+}
+
+static void read_config(esp_config_t* config)
+{
+    uint8_t i;
+    uint32_t* ptr;
+
+    // Node name
+    ptr = (uint32_t *)config->origin;
+    for(i = 0; i < 4; i++)
+    {
+        *ptr = *(uint32_t *)(FLASH_STORAGE_ADDR + 4*i);
+        ptr += 4;
+    }
+}
+
 /**
  * Reset the ESP
  */
@@ -528,18 +565,14 @@ THD_FUNCTION(EspThread, arg)
     esp_status.linkstatus = ESP_NOTLINKED;
     esp_status.ipstatus = ESP_NOSTATUS;
 
-    // Get pointer to SDU so we cna print to shell
+    // Get pointer to SDU so we can print to shell
     SDU1 = usb_get_sdu();
 
-    // Flash
-    flash_unlock();
-    flash_erase_page(FLASH_STORAGE_ADDR);
-    flash_program_word(FLASH_STORAGE_ADDR, 0x1234);
-    flash_lock();
-
-
     //FIXME
-    chsnprintf(esp_config.origin, 4, "%s", "JJ3");
+    chsnprintf(esp_config.origin, 16, "%s", "JJ3");
+    chsnprintf(esp_config.ssid, 16, "%s", "UKHAS");
+    chsnprintf(esp_config.pass, 16, "%s", "ukhasnet");
+    //write_config(&esp_config);
 
     // Turn off ESP ECHO and enable station mode
     esp_request(ESP_MSG_ECHOOFF, NULL);
@@ -580,19 +613,24 @@ THD_FUNCTION(EspThread, arg)
             // message in our mailbox and begin to process it
             // If there is no message, this will stall and the RTOS will
             // suspend this thread and do something else.
-            mailbox_res = chMBFetch(&esp_mailbox, (msg_t *)&msg, TIME_INFINITE);
+            mailbox_res = chMBFetch(&esp_mailbox, (msg_t *)&msg, TIME_IMMEDIATE);
 
             // Check that we got something, otherwise pass
-            if(mailbox_res != MSG_OK || msg == 0) continue;
+            if(mailbox_res != MSG_OK || msg == 0)
+            {
+                chThdSleepMilliseconds(1);
+            }
+            else
+            {
+                // Discard everything in buffer
+                memset(esp_buffer, 0, ESP_BUFFER_SIZE);
+                esp_buf_ptr = esp_buffer;
 
-            // Discard everything in buffer
-            memset(esp_buffer, 0, ESP_BUFFER_SIZE);
-            esp_buf_ptr = esp_buffer;
-
-            // Process this message
-            curmsg = (esp_message_t *)msg;
-            timeout_timer = chVTGetSystemTime();
-            esp_process_msg(curmsg);
+                // Process this message
+                curmsg = (esp_message_t *)msg;
+                timeout_timer = chVTGetSystemTime();
+                esp_process_msg(curmsg);
+            }
         }
 
         // If more than 1 second has passed, update the status
@@ -608,9 +646,10 @@ THD_FUNCTION(EspThread, arg)
             esp_status_timer = chVTGetSystemTime();
 
             // FIXME
-            uint16_t d = *(uint16_t*)FLASH_STORAGE_ADDR;
+            //read_config(&esp_config);
             if(shell_get_level() >= LEVEL_DEBUG)
-                chprintf((BaseSequentialStream *)SDU1, "Flash %d\r\n", d);
+                chprintf((BaseSequentialStream *)SDU1, "Origin: %s\r\n", 
+                        esp_config.origin);
         }
     }
 }

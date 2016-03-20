@@ -62,7 +62,6 @@
 #define FLASH_KEYR_KEY1         ((uint32_t)0x45670123)
 #define FLASH_KEYR_KEY2         ((uint32_t)0xcdef89ab)
 
-
 /**
  * Operation codes
  */
@@ -129,12 +128,13 @@ typedef struct esp_status_t {
  * - the node name
  * - the wifi ssid
  * - the wifi password
- * - if packets should be echoed to the terminal
  * @note This struct should be stored in non-volatile memory and loaded on
  * system boot.
  */
 typedef struct esp_config_t {
     char origin[16];
+    char ssid[16];
+    char pass[16];
 } esp_config_t;
 
 void esp_request(uint32_t opcode, char* buf);
