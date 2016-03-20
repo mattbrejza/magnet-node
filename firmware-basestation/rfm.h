@@ -18,6 +18,12 @@ typedef uint8_t rfm_reg_t;
 /* Status codes for return values from library functions */
 typedef enum rfm_status_t { RFM_OK, RFM_FAIL, RFM_TIMEOUT } rfm_status_t;
 
+/* Packet */
+typedef struct rfm_packet_t {
+    rfm_reg_t payload[64];
+    int16_t rssi;
+} rfm_packet_t;
+
 /* Write commands to the RFM have this bit set */
 #define RFM69_SPI_WRITE_MASK 0x80
 

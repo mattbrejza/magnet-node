@@ -24,7 +24,7 @@
 #define RFM_SS_PIN      GPIOB_RFM_SS
 
 /* Buffer for received data */
-static rfm_reg_t rfm_buf[64];
+static rfm_packet_t rfm_packet;
 
 // Baud rate = periph clock/3 = 1.5MHz
 // DS[0111] is 8 bit data transfers
@@ -173,15 +173,14 @@ static rfm_status_t _rfm_clearfifo(void)
 
 /**
  * Get data from the RFM69 receive buffer.
- * @param buf A pointer into the local buffer in which we would like the data.
+ * @param rfm_packet A pointer into the rfm packet in which we would like the data
  * @param len The length of the data will be placed into this memory address
- * @param lastrssi The RSSI of the packet we're getting
  * @param rfm_packet_waiting A boolean pointer which is true if a packet was
  * received and has been put into the buffer buf, false if there was no packet
  * to get from the RFM69.
  * @returns RFM_OK for success, RFM_FAIL for failure.
  */
-static rfm_status_t rfm_receive(rfm_reg_t* buf, rfm_reg_t* len, int16_t* lastrssi,
+static rfm_status_t rfm_receive(rfm_packet_t* rfm_packet, rfm_reg_t* len, 
         bool* rfm_packet_waiting)
 {
     rfm_reg_t res;
@@ -194,11 +193,11 @@ static rfm_status_t rfm_receive(rfm_reg_t* buf, rfm_reg_t* len, int16_t* lastrss
         /* Get packet length from first byte of FIFO */
         _rfm_read_register(RFM69_REG_00_FIFO, len);
         /* Read FIFO into our Buffer */
-        _rfm_read_burst(RFM69_REG_00_FIFO, buf, *len);
-        buf[*len] = '\0';
+        _rfm_read_burst(RFM69_REG_00_FIFO, rfm_packet->payload, *len);
+        rfm_packet->payload[*len] = '\0';
         /* Read RSSI register (should be of the packet? - TEST THIS) */
         _rfm_read_register(RFM69_REG_24_RSSI_VALUE, &res);
-        *lastrssi = -(res/2);
+        rfm_packet->rssi = -(res/2);
         /* Clear the radio FIFO (found in HopeRF demo code) */
         _rfm_clearfifo();
         *rfm_packet_waiting = true;
@@ -269,15 +268,15 @@ THD_FUNCTION(RfmThread, arg)
     while(TRUE)
     {
         // Check for new packets
-        rfm_receive(rfm_buf, &len, &lastrssi, &packetwaiting);
+        rfm_receive(&rfm_packet, &len, &packetwaiting);
         if(packetwaiting)
         {
             palSetPad(GPIOC, GPIOC_LED_868);
             led_timer = chVTGetSystemTime();
             if(shell_get_level() >= LEVEL_PACKET)
                 chprintf((BaseSequentialStream *)SDU1, "Packet: %s\r\n",
-                    rfm_buf);
-            esp_request(ESP_MSG_START, (char *)rfm_buf);
+                    rfm_packet.payload);
+            esp_request(ESP_MSG_START, (char *)rfm_packet.payload);
             packetwaiting = false;
         }
         chThdSleepMilliseconds(1);
