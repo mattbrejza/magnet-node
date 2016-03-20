@@ -554,15 +554,26 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[]) {
 static void cmd_show(BaseSequentialStream *chp, int argc, char *argv[]) {
     if(argc < 1)
     {
-        chprintf(chp, "Usage: show [none|packet|debug]\r\n");
-        return;
+        switch(_level)
+        {
+            case LEVEL_NONE:
+                chprintf(chp, "Level: none \r\n");
+                break;
+            case LEVEL_PACKET:
+                chprintf(chp, "Level: packet \r\n");
+                break;
+            case LEVEL_DEBUG:
+                chprintf(chp, "Level: debug \r\n");
+                break;
+        }
+    } else {
+        if(strcmp(argv[0], "none") == 0)
+            shell_set_level(LEVEL_NONE);
+        else if(strcmp(argv[0], "packet") == 0)
+            shell_set_level(LEVEL_PACKET);
+        else if(strcmp(argv[0], "debug") == 0)
+            shell_set_level(LEVEL_DEBUG);
     }
-    if(strcmp(argv[0], "none") == 0)
-        shell_set_level(LEVEL_NONE);
-    else if(strcmp(argv[0], "packet") == 0)
-        shell_set_level(LEVEL_PACKET);
-    else if(strcmp(argv[0], "debug") == 0)
-        shell_set_level(LEVEL_DEBUG);
 }
 
 static const ShellCommand commands[] = {
