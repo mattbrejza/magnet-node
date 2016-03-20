@@ -193,7 +193,7 @@ static void esp_process_msg(esp_message_t* msg)
             sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                     strlen(esp_out_buf), MS2ST(500));
             // Wait for the ESP to send ">"
-            chThdSleepMilliseconds(50);
+            chThdSleepMilliseconds(10);
             // Now begins the HTTP req
             // Reset buf pointer
             esp_out_buf_ptr = esp_out_buf;
@@ -464,8 +464,9 @@ THD_FUNCTION(EspThread, arg)
     //FIXME
     chsnprintf(esp_config.origin, 4, "%s", "JJ3");
 
-    // Turn off ESP ECHO
+    // Turn off ESP ECHO and enable station mode
     esp_request(ESP_MSG_ECHOOFF, NULL);
+    esp_request(ESP_MSG_CWMODE, NULL);
     
     // Loop forever for this thread
     while(TRUE)
@@ -486,12 +487,13 @@ THD_FUNCTION(EspThread, arg)
             else if(chVTGetSystemTime() > timer + MS2ST(3000))
             {
                 chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
+                palClearPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
             else
             {
                 // Only sleep this thread if the buffer is empty
-                chThdSleepMilliseconds(10);
+                chThdSleepMilliseconds(1);
             }
         } 
         else /* curmsg == NULL */

@@ -85,12 +85,12 @@ int main(void) {
     /*
      * Create ESP processing thread
      */
-    chThdCreateStatic(waEsp, sizeof(waEsp), NORMALPRIO+1, EspThread, NULL);
+    chThdCreateStatic(waEsp, sizeof(waEsp), NORMALPRIO+2, EspThread, NULL);
 
     /*
      * Create RFM69 thread
      */
-    chThdCreateStatic(waRFM, sizeof(waRFM), NORMALPRIO, RfmThread, NULL);
+    chThdCreateStatic(waRFM, sizeof(waRFM), NORMALPRIO+1, RfmThread, NULL);
 
     /*
      * Creates the blinker thread.

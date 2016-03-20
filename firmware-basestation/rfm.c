@@ -272,7 +272,7 @@ THD_FUNCTION(RfmThread, arg)
             esp_request(ESP_MSG_START, (char *)rfm_buf);
             packetwaiting = false;
         }
-        chThdSleepMilliseconds(10);
+        chThdSleepMilliseconds(1);
         palClearPad(GPIOC, GPIOC_LED_868);
     }
 }
