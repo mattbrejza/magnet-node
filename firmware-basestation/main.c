@@ -51,9 +51,9 @@ static THD_FUNCTION(BlinkerThread, arg) {
     while (true) {
         systime_t time = serusbcfg->usbp->state == USB_ACTIVE ? 250 : 500;
         /*systime_t time = 250;*/
-        palClearPad(GPIOC, GPIOC_LED_AUX);
+        //palClearPad(GPIOC, GPIOC_LED_AUX);
         chThdSleepMilliseconds(time);
-        palSetPad(GPIOC, GPIOC_LED_AUX);
+        //palSetPad(GPIOC, GPIOC_LED_AUX);
         chThdSleepMilliseconds(time);
     }
 }

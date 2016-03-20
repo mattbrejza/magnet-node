@@ -232,10 +232,6 @@ static void esp_process_msg(esp_message_t* msg)
                         strlen(esp_out_buf), MS2ST(500));
                 chThdSleepMilliseconds(10);
             }
-            else
-            {
-                chprintf((BaseSequentialStream *)SDU1, "Not associated! Use \"esp join <ssid> <pass>\"\r\n");
-            }
             break;
         default:
             curmsg = NULL;
@@ -403,7 +399,7 @@ static void esp_state_machine(void)
                     strstr(esp_buffer, ESP_RESP_ALREADY_CONNECTED))
             {
                 esp_status.linkstatus = ESP_LINKED;
-                palSetPad(GPIOC, GPIOC_LED_WIFI);
+                palClearPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
                 esp_request(ESP_MSG_SEND, curmsg->payload);
                 esp_curmsg_delete();
@@ -422,7 +418,7 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_UNLINK))
             {
                 esp_status.linkstatus = ESP_NOTLINKED;
-                palClearPad(GPIOC, GPIOC_LED_WIFI);
+                palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
             // If we get ERROR, or "link is not"; retry
@@ -432,7 +428,7 @@ static void esp_state_machine(void)
             {
                 chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
                 esp_request(ESP_MSG_START, curmsg->payload);
-                palClearPad(GPIOC, GPIOC_LED_WIFI);
+                palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
             break;
@@ -506,7 +502,6 @@ THD_FUNCTION(EspThread, arg)
             else if(chVTGetSystemTime() > timeout_timer + MS2ST(1500))
             {
                 chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
-                palClearPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
             else
@@ -539,6 +534,12 @@ THD_FUNCTION(EspThread, arg)
         // If more than 1 second has passed, update the status
         if(chVTGetSystemTime() - esp_status_timer > MS2ST(1000))
         {
+            // Change LED
+            if(esp_status.ipstatus > 1 && esp_status.ipstatus < 5)
+                palSetPad(GPIOC, GPIOC_LED_WIFI);
+            else
+                palClearPad(GPIOC, GPIOC_LED_WIFI);
+            // Update esp_status.ipstatus
             esp_request(ESP_MSG_STATUS, NULL);
             esp_status_timer = chVTGetSystemTime();
         }
