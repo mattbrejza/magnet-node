@@ -72,6 +72,59 @@ const char ESP_UPLOAD_CONTENT_ORIGIN[] = "origin=";
 const char ESP_UPLOAD_CONTENT_DATA[] = "&data=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
 
+static void flash_lock(void)
+{
+    FLASH_CR |= FLASH_CR_LOCK;
+}
+
+static void flash_unlock(void)
+{
+    /* Clear the unlock state. */
+    FLASH_CR |= FLASH_CR_LOCK;
+
+    /* Authorize the FPEC access. */
+    FLASH_KEYR = FLASH_KEYR_KEY1;
+    FLASH_KEYR = FLASH_KEYR_KEY2;
+}
+
+static uint32_t flash_get_status_flags(void)
+{
+    return FLASH_SR & (FLASH_SR_PGERR |
+            FLASH_SR_EOP |
+            FLASH_SR_WRPRTERR |
+            FLASH_SR_BSY);
+}
+
+static void flash_wait_for_last_operation(void)
+{
+    while ((flash_get_status_flags() & FLASH_SR_BSY) == FLASH_SR_BSY);
+}
+
+static void flash_program_half_word(uint32_t address, uint16_t data)
+{
+    flash_wait_for_last_operation();
+    FLASH_CR |= FLASH_CR_PG;
+    MMIO16(address) = data;
+    flash_wait_for_last_operation();
+    FLASH_CR &= ~FLASH_CR_PG;
+}
+
+static void flash_program_word(uint32_t address, uint32_t data)
+{
+    flash_program_half_word(address, (uint16_t)data);
+    flash_program_half_word(address+2, (uint16_t)(data>>16));
+}
+
+static void flash_erase_page(uint32_t page_address)
+{
+    flash_wait_for_last_operation();
+    FLASH_CR |= FLASH_CR_PER;
+    FLASH_AR = page_address;
+    FLASH_CR |= FLASH_CR_STRT;
+    flash_wait_for_last_operation();
+    FLASH_CR &= ~FLASH_CR_PER;
+}
+
 /**
  * Reset the ESP
  */
@@ -478,6 +531,13 @@ THD_FUNCTION(EspThread, arg)
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
 
+    // Flash
+    flash_unlock();
+    flash_erase_page(FLASH_STORAGE_ADDR);
+    flash_program_word(FLASH_STORAGE_ADDR, 0x1234);
+    flash_lock();
+
+
     //FIXME
     chsnprintf(esp_config.origin, 4, "%s", "JJ3");
 
@@ -546,6 +606,11 @@ THD_FUNCTION(EspThread, arg)
             // Update esp_status.ipstatus
             esp_request(ESP_MSG_STATUS, NULL);
             esp_status_timer = chVTGetSystemTime();
+
+            // FIXME
+            uint16_t d = *(uint16_t*)FLASH_STORAGE_ADDR;
+            if(shell_get_level() >= LEVEL_DEBUG)
+                chprintf((BaseSequentialStream *)SDU1, "Flash %d\r\n", d);
         }
     }
 }

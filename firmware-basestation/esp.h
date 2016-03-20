@@ -29,6 +29,41 @@
 #define MAILBOX_ITEMS 8
 
 /**
+ * Flash storage
+ */
+#define FLASH_STORAGE_ADDR          ((uint32_t)0x0800fc00)
+#define FLASH_STORAGE_LEN           0x400
+#define FLASH_PAGE_SIZE             0x400
+
+#define MMIO16(addr)                (*(volatile uint16_t *)(addr))
+#define MMIO32(addr)                (*(volatile uint32_t *)(addr))
+
+#define PERIPH_BASE_AHB1            (PERIPH_BASE + 0x00020000)
+#define FLASH_MEM_INTERFACE_BASE    (PERIPH_BASE_AHB1 + 0x2000)
+
+/* --- FLASH registers ----------------------------------------------------- */
+
+#define FLASH_ACR           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x00)
+#define FLASH_KEYR          MMIO32(FLASH_MEM_INTERFACE_BASE + 0x04)
+#define FLASH_OPTKEYR       MMIO32(FLASH_MEM_INTERFACE_BASE + 0x08)
+#define FLASH_SR            MMIO32(FLASH_MEM_INTERFACE_BASE + 0x0C)
+#define FLASH_CR            MMIO32(FLASH_MEM_INTERFACE_BASE + 0x10)
+#define FLASH_AR            MMIO32(FLASH_MEM_INTERFACE_BASE + 0x14)
+#define FLASH_OBR           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x1C)
+#define FLASH_WRPR          MMIO32(FLASH_MEM_INTERFACE_BASE + 0x20)
+/* Only present in STM32F10x XL series */
+#define FLASH_KEYR2         MMIO32(FLASH_MEM_INTERFACE_BASE + 0x44)
+#define FLASH_SR2           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x4C)
+#define FLASH_CR2           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x50)
+#define FLASH_AR2           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x54)
+
+/* --- FLASH Keys -----------------------------------------------------------*/
+
+#define FLASH_KEYR_KEY1         ((uint32_t)0x45670123)
+#define FLASH_KEYR_KEY2         ((uint32_t)0xcdef89ab)
+
+
+/**
  * Operation codes
  */
 #define ESP_MSG_VERSION             0x01
