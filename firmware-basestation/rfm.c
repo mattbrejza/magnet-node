@@ -274,8 +274,10 @@ THD_FUNCTION(RfmThread, arg)
             palSetPad(GPIOC, GPIOC_LED_868);
             led_timer = chVTGetSystemTime();
             if(shell_get_level() >= LEVEL_PACKET)
-                chprintf((BaseSequentialStream *)SDU1, "Packet: %s\r\n",
-                    rfm_packet.payload);
+                chprintf((BaseSequentialStream *)SDU1, 
+                        "Packet: %s (%ddBm)\r\n", 
+                        rfm_packet.payload,
+                        rfm_packet.rssi);
             esp_request(ESP_MSG_START, &rfm_packet);
             packetwaiting = false;
         }
