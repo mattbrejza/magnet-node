@@ -70,6 +70,7 @@ const char ESP_UPLOAD_START[] = "POST /api/upload HTTP/1.0\r\nHost: ukhas.net\r\
 const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
 const char ESP_UPLOAD_CONTENT_ORIGIN[] = "origin=";
 const char ESP_UPLOAD_CONTENT_DATA[] = "&data=";
+const char ESP_UPLOAD_CONTENT_RSSI[] = "&rssi=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
 
 static void flash_lock(void)
@@ -288,6 +289,7 @@ static void esp_process_msg(esp_message_t* msg)
 {
     uint16_t contentlen;
     char contentlen_s[3];
+    char rssilen_s[6];
 
     switch(msg->opcode)
     {
@@ -319,7 +321,7 @@ static void esp_process_msg(esp_message_t* msg)
         case ESP_MSG_JOIN:
             esp_out_buf_ptr = esp_out_buf;
             chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n",
-                    ESP_STRING_JOIN, msg->payload);
+                    ESP_STRING_JOIN, msg->rfm_packet.payload);
             sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                     strlen(esp_out_buf), MS2ST(500));
             break;
@@ -328,10 +330,14 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(ESP_STRING_STATUS), MS2ST(100));
             break;
         case ESP_MSG_SEND:
+            // Find length of the rssi bit
+            chsnprintf(rssilen_s, 6, "%d", curmsg->rfm_packet.rssi);
             // Send the (up to) 64 byte message in the payload to the server
-            contentlen = strlen(curmsg->payload)
+            contentlen = strlen((char *)curmsg->rfm_packet.payload)
+                + strlen(rssilen_s)
                 + strlen(ESP_UPLOAD_CONTENT_ORIGIN)
                 + strlen(ESP_UPLOAD_CONTENT_DATA)
+                + strlen(ESP_UPLOAD_CONTENT_RSSI)
                 + strlen(esp_config.origin);
             chsnprintf(contentlen_s, 3, "%u", contentlen);
             // Reset buf pointer
@@ -344,7 +350,9 @@ static void esp_process_msg(esp_message_t* msg)
                     + strlen(ESP_UPLOAD_CONTENT_ORIGIN)
                     + strlen(esp_config.origin)
                     + strlen(ESP_UPLOAD_CONTENT_DATA)
-                    + strlen(curmsg->payload));
+                    + strlen((char *)curmsg->rfm_packet.payload)
+                    + strlen(ESP_UPLOAD_CONTENT_RSSI)
+                    + strlen(rssilen_s));
             esp_out_buf_ptr += strlen(esp_out_buf_ptr);
             sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                     strlen(esp_out_buf), MS2ST(500));
@@ -353,13 +361,15 @@ static void esp_process_msg(esp_message_t* msg)
             // Now begins the HTTP req
             // Reset buf pointer
             esp_out_buf_ptr = esp_out_buf;
-            chsnprintf(esp_out_buf_ptr, 512, "%s%u%s%s%s%s%s", ESP_UPLOAD_START,
+            chsnprintf(esp_out_buf_ptr, 512, "%s%u%s%s%s%s%s%s%d", ESP_UPLOAD_START,
                     contentlen,
                     ESP_UPLOAD_END,
                     ESP_UPLOAD_CONTENT_ORIGIN,
                     esp_config.origin,
                     ESP_UPLOAD_CONTENT_DATA,
-                    curmsg->payload);
+                    curmsg->rfm_packet.payload,
+                    ESP_UPLOAD_CONTENT_RSSI,
+                    curmsg->rfm_packet.rssi);
             esp_out_buf_ptr += strlen(esp_out_buf_ptr);
             sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                     strlen(esp_out_buf), MS2ST(500));
@@ -397,7 +407,7 @@ static void esp_process_msg(esp_message_t* msg)
  * Receive a message from another thread. We allocate memory for the
  * esp_message_t and add it to the MailBox so that it will be processed.
  */
-void esp_request(uint32_t opcode, char* buf)
+void esp_request(uint32_t opcode, rfm_packet_t* packet)
 {
     void* msg_in_pool;
     msg_t retval;
@@ -405,8 +415,11 @@ void esp_request(uint32_t opcode, char* buf)
     // Construct the message (allow NULL pointers here)
     esp_message_t msg;
     msg.opcode = opcode;
-    if(buf != NULL)
-        strncpy(msg.payload, buf, 64);
+    if(packet != NULL)
+    {
+        strncpy((char *)msg.rfm_packet.payload, (char *)packet->payload, 64);
+        msg.rfm_packet.rssi = packet->rssi;
+    }
 
     // Allocate memory for it in the pool
     msg_in_pool = chPoolAlloc(&mailbox_mempool);
@@ -543,7 +556,7 @@ static void esp_state_machine(void)
                 esp_status.linkstatus = ESP_LINKED;
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
-                esp_request(ESP_MSG_SEND, curmsg->payload);
+                esp_request(ESP_MSG_SEND, &curmsg->rfm_packet);
                 esp_curmsg_delete();
             }
             // If we get ERROR, or "link is not"; retry
@@ -553,7 +566,7 @@ static void esp_state_machine(void)
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
-                esp_request(ESP_MSG_START, curmsg->payload);
+                esp_request(ESP_MSG_START, &curmsg->rfm_packet);
                 esp_curmsg_delete();
             }
             break;
@@ -571,7 +584,7 @@ static void esp_state_machine(void)
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
-                esp_request(ESP_MSG_START, curmsg->payload);
+                esp_request(ESP_MSG_START, &curmsg->rfm_packet);
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }

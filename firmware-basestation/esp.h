@@ -12,6 +12,8 @@
 #ifndef __ESP_H__
 #define __ESP_H__
 
+#include "rfm.h"
+
 /**
  * Size of the ring buffer into which we put incoming data from the ESP
  * that is waiting to be processed
@@ -130,7 +132,7 @@
  */
 typedef struct esp_message_t {
     uint32_t opcode;
-    char payload[64];
+    rfm_packet_t rfm_packet;
 } esp_message_t;
 
 /**
@@ -157,7 +159,7 @@ typedef struct esp_config_t {
     uint32_t validity;
 } esp_config_t;
 
-void esp_request(uint32_t opcode, char* buf);
+void esp_request(uint32_t opcode, rfm_packet_t* packet);
 void esp_set_origin(char *neworigin);
 void esp_set_ssid_pass(char* ssid, char* pass);
 uint8_t esp_get_status(void);

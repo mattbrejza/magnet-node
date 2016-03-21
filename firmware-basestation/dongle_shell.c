@@ -515,20 +515,20 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
         if(argc == 3)
         {
             // TODO: Check length of args !>64 bytes
-            char tbuf[64];
-            char *tbuf_ptr = tbuf;
+            rfm_packet_t packet;
+            rfm_reg_t *tbuf_ptr = packet.payload;
             *tbuf_ptr++ = '"';
-            strcpy(tbuf_ptr, argv[1]);
-            tbuf_ptr += strlen(tbuf_ptr);
+            strcpy((char * )tbuf_ptr, argv[1]);
+            tbuf_ptr += strlen((char *)tbuf_ptr);
             *tbuf_ptr++ = '"';
             *tbuf_ptr++ = ',';
             *tbuf_ptr++ = '"';
-            strcpy(tbuf_ptr, argv[2]);
-            tbuf_ptr += strlen(tbuf_ptr);
+            strcpy((char *)tbuf_ptr, argv[2]);
+            tbuf_ptr += strlen((char *)tbuf_ptr);
             *tbuf_ptr++ = '"';
             *tbuf_ptr++ = '\0';
             esp_set_ssid_pass(argv[1], argv[2]);
-            esp_request(ESP_MSG_JOIN, tbuf);
+            esp_request(ESP_MSG_JOIN, &packet);
         } 
         else if(argc == 1)
         {
@@ -549,7 +549,9 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     } /* argv[0] is status */
     else if(strcmp(argv[0], "testsend") == 0)
     {
-        esp_request(ESP_MSG_START, "2aT19.0[JJJ]");
+        rfm_packet_t packet;
+        strcpy((char *)packet.payload, "2AT19.0[JJJ]");
+        esp_request(ESP_MSG_START, &packet);
     }
     else if(strcmp(argv[0], "eoff") == 0)
     {

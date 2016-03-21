@@ -219,10 +219,10 @@ THD_FUNCTION(RfmThread, arg)
     chRegSetThreadName("rfm");
     uint8_t i;
     rfm_reg_t res, len;
-    int16_t lastrssi;
     bool packetwaiting;
     systime_t led_timer;
     
+    /* Set to true if packet waiting */
     packetwaiting = false;
     
     // Get pointer to SDU so we cna print to shell
@@ -276,7 +276,7 @@ THD_FUNCTION(RfmThread, arg)
             if(shell_get_level() >= LEVEL_PACKET)
                 chprintf((BaseSequentialStream *)SDU1, "Packet: %s\r\n",
                     rfm_packet.payload);
-            esp_request(ESP_MSG_START, (char *)rfm_packet.payload);
+            esp_request(ESP_MSG_START, &rfm_packet);
             packetwaiting = false;
         }
         chThdSleepMilliseconds(1);
