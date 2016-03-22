@@ -50,6 +50,7 @@
 #define ORIGIN_VALID                (1<<0)
 #define SSID_PASS_VALID             (1<<1)
 
+/* Where origin, ssid and pass are stored in flash */
 #define FLASH_ORIGIN                FLASH_STORAGE_ADDR
 #define FLASH_SSID                  FLASH_STORAGE_ADDR + ORIGIN_LEN_MAX
 #define FLASH_PASS                  FLASH_SSID + SSID_LEN_MAX
@@ -62,7 +63,6 @@
 #define FLASH_MEM_INTERFACE_BASE    (PERIPH_BASE_AHB1 + 0x2000)
 
 /* --- FLASH registers ----------------------------------------------------- */
-
 #define FLASH_ACR           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x00)
 #define FLASH_KEYR          MMIO32(FLASH_MEM_INTERFACE_BASE + 0x04)
 #define FLASH_OPTKEYR       MMIO32(FLASH_MEM_INTERFACE_BASE + 0x08)
@@ -71,14 +71,8 @@
 #define FLASH_AR            MMIO32(FLASH_MEM_INTERFACE_BASE + 0x14)
 #define FLASH_OBR           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x1C)
 #define FLASH_WRPR          MMIO32(FLASH_MEM_INTERFACE_BASE + 0x20)
-/* Only present in STM32F10x XL series */
-#define FLASH_KEYR2         MMIO32(FLASH_MEM_INTERFACE_BASE + 0x44)
-#define FLASH_SR2           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x4C)
-#define FLASH_CR2           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x50)
-#define FLASH_AR2           MMIO32(FLASH_MEM_INTERFACE_BASE + 0x54)
 
 /* --- FLASH Keys -----------------------------------------------------------*/
-
 #define FLASH_KEYR_KEY1         ((uint32_t)0x45670123)
 #define FLASH_KEYR_KEY2         ((uint32_t)0xcdef89ab)
 
@@ -156,7 +150,7 @@ typedef struct esp_config_t {
     char origin[ORIGIN_LEN_MAX];
     char ssid[SSID_LEN_MAX];
     char pass[PASS_LEN_MAX];
-    uint32_t validity;
+    int32_t validity;
 } esp_config_t;
 
 void esp_request(uint32_t opcode, rfm_packet_t* packet);

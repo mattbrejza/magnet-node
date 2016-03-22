@@ -55,6 +55,7 @@ MEMORYPOOL_DECL(mailbox_mempool, MAILBOX_ITEMS * sizeof(esp_message_t), NULL);
  */
 MAILBOX_DECL(esp_mailbox, &mailbox_buffer, MAILBOX_ITEMS);
 
+/* Send commands to the ESP */
 const char ESP_STRING_VERSION[] = "AT+GMR\r\n";
 const char ESP_STRING_AT[] = "AT\r\n";
 const char ESP_STRING_RST[] = "AT+RST\r\n";
@@ -101,7 +102,7 @@ static void flash_wait_for_last_operation(void)
     while ((flash_get_status_flags() & FLASH_SR_BSY) == FLASH_SR_BSY);
 }
 
-static void flash_program_half_word(uint32_t address, uint16_t data)
+static void flash_program_half_word(uintptr_t address, uint16_t data)
 {
     flash_wait_for_last_operation();
     FLASH_CR |= FLASH_CR_PG;
@@ -126,6 +127,11 @@ static void flash_erase_page(uint32_t page_address)
     FLASH_CR &= ~FLASH_CR_PER;
 }
 
+/**
+ * The esp config is stored in an esp_config_t. Write this to flash.
+ * @param config Pointer to an esp_config_t containing the configuration to
+ * write.
+ */
 static void write_config(esp_config_t* config)
 {
     uint8_t i;
@@ -155,28 +161,33 @@ static void write_config(esp_config_t* config)
     flash_lock();
 }
 
+/**
+ * Read an esp_config_t stored in flash.
+ * @param config Pointer to an esp_config_t which will be written with the
+ * configuration from flash memory.
+ */
 static void read_config(esp_config_t* config)
 {
-    uint8_t i;
+    uintptr_t i;
     uint32_t* ptr;
 
     // Node name
     ptr = (uint32_t *)config->origin;
     for(i = 0; i < 4; i++)
-        *ptr++ = *(uint32_t *)(FLASH_ORIGIN + 4*i);
+        *ptr++ = *(uintptr_t *)(FLASH_ORIGIN + 4*i);
 
     // SSID
     ptr = (uint32_t *)config->ssid;
     for(i = 0; i < 4; i++)
-        *ptr++ = *(uint32_t *)(FLASH_SSID + 4*i);
+        *ptr++ = *(uintptr_t *)(FLASH_SSID + 4*i);
 
     // Node name
     ptr = (uint32_t *)config->pass;
     for(i = 0; i < 4; i++)
-        *ptr++ = *(uint32_t *)(FLASH_PASS + 4*i);
+        *ptr++ = *(uintptr_t *)(FLASH_PASS + 4*i);
 
     // Validity
-    config->validity = *(uint32_t *)(FLASH_VALID);
+    config->validity = *(int32_t *)(FLASH_VALID);
 }
 
 /**
@@ -635,12 +646,14 @@ THD_FUNCTION(EspThread, arg)
 
     // Process configuration
     read_config(&esp_config);
-    if(esp_config.validity == 0xFF)
+    // If config has never been written before, write an invalid config
+    if(esp_config.validity == -1)
     {
-        chsnprintf(esp_config.origin, ORIGIN_LEN_MAX, "%s", "JJ3");
-        chsnprintf(esp_config.ssid, SSID_LEN_MAX, "%s", "UKHAS");
-        chsnprintf(esp_config.pass, PASS_LEN_MAX, "%s", "ukhasnet");
+        chsnprintf(esp_config.origin, ORIGIN_LEN_MAX, "%s", "CHANGEME");
+        chsnprintf(esp_config.ssid, SSID_LEN_MAX, "%s", "testssid");
+        chsnprintf(esp_config.pass, PASS_LEN_MAX, "%s", "testpass");
         esp_config.validity = 0;
+        write_config(&esp_config);
     }
 
     // Turn off ESP ECHO and enable station mode
