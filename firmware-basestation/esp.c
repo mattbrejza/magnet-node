@@ -391,14 +391,21 @@ static void esp_process_msg(esp_message_t* msg)
                     && strcmp(esp_status.ip, "") != 0
                     && strncmp(esp_status.ip, "0.0.0.0", 8) != 0)
             {
-                // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
-                esp_out_buf_ptr = esp_out_buf;
-                chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n",
-                        ESP_STRING_START,
-                        UKHASNET_IP);
-                sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
-                        strlen(esp_out_buf), MS2ST(500));
-                chThdSleepMilliseconds(10);
+                if(esp_config.validity & ORIGIN_VALID &&
+                        esp_config.validity & SSID_PASS_VALID)
+                {
+                    // Send AT+CIPSTART="TCP","<ip>",<port>\r\n
+                    esp_out_buf_ptr = esp_out_buf;
+                    chsnprintf(esp_out_buf, ESP_OUT_BUF_SIZE, "%s%s\r\n",
+                            ESP_STRING_START,
+                            UKHASNET_IP);
+                    sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
+                            strlen(esp_out_buf), MS2ST(500));
+                    chThdSleepMilliseconds(10);
+                } else {
+                    if(shell_get_level() >= LEVEL_DEBUG)
+                        chprintf((BaseSequentialStream *)SDU1, "Set origin (> esp origin) and SSID/password (> esp ap)\r\n");
+                }
             }
             else
             {
