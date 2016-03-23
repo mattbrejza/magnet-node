@@ -208,7 +208,7 @@ static void esp_init(void)
 
     // Configure UART
     static const SerialConfig sc = {
-        9600, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
+        115200, 0, USART_CR2_STOP1_BITS | USART_CR2_LINEN, 0};
     sdStart(&SD1, &sc);
 
     // Wait a little
@@ -470,6 +470,7 @@ static size_t esp_receive_byte(char* buf)
 static void esp_state_machine(void)
 {
     char *bufptr;
+    char *bufptr2;
     uint8_t len;
     char user_print_buf[32];
 
@@ -513,10 +514,12 @@ static void esp_state_machine(void)
         case ESP_MSG_IP:
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
-                // Find first \n
-                bufptr = strstr(esp_buffer, "\r");
-                len = bufptr - esp_buffer;
-                strncpy(user_print_buf, esp_buffer, len);
+                bufptr = strstr(esp_buffer, ",");
+                bufptr2 = strstr(esp_buffer, "\r");
+                // Subtract 2 to remove the quotes around the IP
+                len = bufptr2 - bufptr - 3;
+                strncpy(user_print_buf, bufptr+2, len);
+                // Null terminate the string
                 user_print_buf[len] = '\0';
                 strncpy(esp_status.ip, user_print_buf, 16);
                 esp_curmsg_delete();
@@ -548,9 +551,11 @@ static void esp_state_machine(void)
             }
             break;
         case ESP_MSG_START:
-            if(strstr(esp_buffer, ESP_RESP_LINKED) || 
+            if(strstr(esp_buffer, ESP_RESP_OK) || 
                     strstr(esp_buffer, ESP_RESP_ALREADY_CONNECTED))
             {
+                if(shell_get_level() >= LEVEL_DEBUG)
+                    chprintf((BaseSequentialStream*)SDU1, "Already\r\n");
                 esp_status.linkstatus = ESP_LINKED;
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM

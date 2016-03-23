@@ -109,13 +109,13 @@
  * ESP responses
  */
 #define ESP_RESP_OK                 "OK\r\n"
-#define ESP_RESP_READY              "Ready"
+#define ESP_RESP_READY              "ready\r\n"
 #define ESP_RESP_NOCHANGE           "no change\r\n"
 #define ESP_RESP_FAIL               "FAIL\r\n"
 #define ESP_RESP_ERROR              "ERROR"
 #define ESP_RESP_ERROR2             "Error"
 #define ESP_RESP_LINKED             "Linked\r\n"
-#define ESP_RESP_ALREADY_CONNECTED  "ALREAY CONNECT\r\n"
+#define ESP_RESP_ALREADY_CONNECTED  "ALREADY CONNECT"
 #define ESP_RESP_UNLINK             "Unlink\r\n"
 #define ESP_RESP_NOLINK             "link is not\r\n"
 

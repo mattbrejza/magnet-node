@@ -1,0 +1,1 @@
+sudo python esptool.py --port /dev/tty.usbmodem301 write_flash 0 at/noboot/eagle.flash.bin 0x40000 at/noboot/eagle.irom0text.bin 0x3e000 at/blank.bin 0x7e000 at/blank.bin 0x7c000 at/esp_init_data_default.bin

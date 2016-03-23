@@ -437,7 +437,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
             // Normal mode, no need to reset the ESP
             palClearPad(GPIOF, GPIOF_ESP_RST);
             palClearPad(GPIOF, GPIOF_ESP_CHPD);
-            sc.speed = 9600;
+            sc.speed = 115200;
             palSetPad(GPIOA, GPIOA_ESP_GPIO0);
             chprintf(chp, "ESP entering normal mode...");
         }
