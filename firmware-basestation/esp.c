@@ -135,29 +135,20 @@ static void flash_erase_page(uint32_t page_address)
 static void write_config(esp_config_t* config)
 {
     uint8_t i;
+    uintptr_t* ptr;
 
     // Erase the current settings
     flash_unlock();
     flash_erase_page(FLASH_STORAGE_ADDR);
 
-    // Write node name
-    for(i = 0; i < 8; i++)
-        flash_program_word(FLASH_ORIGIN + 4*i,
-                *(uint32_t *)(config->origin + 4*i));
+    // Loop through the esp_config_t word-by-word and write to flash
+    ptr = (uintptr_t *)config;
+    for(i = 0; i < sizeof(esp_config_t)/sizeof(uintptr_t); i++)
+    {
+        flash_program_word(FLASH_STORAGE_ADDR + 4*i, *ptr++);
+    }
 
-    // Write ssid
-    for(i = 0; i < 8; i++)
-        flash_program_word(FLASH_SSID + 4*i,
-                *(uint32_t *)(config->ssid + 4*i));
-
-    // Write pass
-    for(i = 0; i < 8; i++)
-        flash_program_word(FLASH_PASS + 4*i,
-                *(uint32_t *)(config->pass + 4*i));
-
-    // Write valid
-    flash_program_word(FLASH_VALID, (uint32_t)(config->validity));
-
+    // Relock flash
     flash_lock();
 }
 
@@ -169,25 +160,14 @@ static void write_config(esp_config_t* config)
 static void read_config(esp_config_t* config)
 {
     uintptr_t i;
-    uint32_t* ptr;
+    uintptr_t* ptr;
 
-    // Node name
-    ptr = (uint32_t *)config->origin;
-    for(i = 0; i < 4; i++)
+    // Read through the esp_config_t
+    ptr = (uintptr_t *)config;
+    for(i = 0; i < sizeof(esp_config_t)/sizeof(uintptr_t); i++)
+    {
         *ptr++ = *(uintptr_t *)(FLASH_ORIGIN + 4*i);
-
-    // SSID
-    ptr = (uint32_t *)config->ssid;
-    for(i = 0; i < 4; i++)
-        *ptr++ = *(uintptr_t *)(FLASH_SSID + 4*i);
-
-    // Node name
-    ptr = (uint32_t *)config->pass;
-    for(i = 0; i < 4; i++)
-        *ptr++ = *(uintptr_t *)(FLASH_PASS + 4*i);
-
-    // Validity
-    config->validity = *(int32_t *)(FLASH_VALID);
+    }
 }
 
 /**

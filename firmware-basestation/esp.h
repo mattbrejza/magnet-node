@@ -145,8 +145,9 @@ typedef struct esp_status_t {
  * - the wifi password
  * @note This struct should be stored in non-volatile memory and loaded on
  * system boot.
+ * @warning This must be aligned to word boundaries (32 bit on ARM CMx)
  */
-typedef struct esp_config_t {
+typedef __packed struct esp_config_t {
     char origin[ORIGIN_LEN_MAX];
     char ssid[SSID_LEN_MAX];
     char pass[PASS_LEN_MAX];
