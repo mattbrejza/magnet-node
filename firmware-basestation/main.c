@@ -463,7 +463,7 @@ int main(void)
 #ifdef USE_HTU
 	htu21_init();
 #endif
-//	init_wdt();
+	init_wdt();
 
 	user_send_non_blocking_str("Booting... \r\n");
 
