@@ -478,22 +478,28 @@ static void esp_state_machine(void)
     switch(curmsg->opcode)
     {
         case ESP_MSG_VERSION:
-            // Wait for OK
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
-                // Find first \n
+                // Find first \n and print the first line pf response
                 bufptr = strstr(esp_buffer, "\n");
-                len = bufptr - esp_buffer;
-                strncpy(user_print_buf, esp_buffer, len);
-                user_print_buf[len] = '\0';
-                chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
-                esp_curmsg_delete();
+                if(bufptr)
+                {
+                    len = bufptr - esp_buffer;
+                    strncpy(user_print_buf, esp_buffer, len);
+                    user_print_buf[len] = '\0';
+                    chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
+                    esp_curmsg_delete();
+                } else {
+                    if(shell_get_level() >= LEVEL_DEBUG)
+                        chprintf((BaseSequentialStream*)SDU1,
+                                "ESP_MSG_VER: LF not found\r\n");
+                }
             }
             break;
         case ESP_MSG_RST:
             if(strstr(esp_buffer, ESP_RESP_READY))
             {
-                chprintf((BaseSequentialStream*)SDU1, "ESP reset successful\r\n");
+                chprintf((BaseSequentialStream*)SDU1, "ESP reset OK\r\n");
                 // Immediately re-disable echo
                 esp_request(ESP_MSG_ECHOOFF, NULL, ESP_PRIO_HIGH);
                 esp_curmsg_delete();
@@ -515,17 +521,25 @@ static void esp_state_machine(void)
             }
             break;
         case ESP_MSG_IP:
+            // Look for +CIFSR:\"10.0.0.100\" and extract IP
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
                 bufptr = strstr(esp_buffer, ",");
                 bufptr2 = strstr(esp_buffer, "\r");
-                // Subtract 2 to remove the quotes around the IP
-                len = bufptr2 - bufptr - 3;
-                strncpy(user_print_buf, bufptr+2, len);
-                // Null terminate the string
-                user_print_buf[len] = '\0';
-                strncpy(esp_status.ip, user_print_buf, 16);
-                esp_curmsg_delete();
+                if(bufptr && bufptr2)
+                {
+                    // Subtract 2 to remove the quotes around the IP
+                    len = bufptr2 - bufptr - 3;
+                    strncpy(user_print_buf, bufptr+2, len);
+                    // Null terminate the string
+                    user_print_buf[len] = '\0';
+                    strncpy(esp_status.ip, user_print_buf, 16);
+                    esp_curmsg_delete();
+                } else {
+                    if(shell_get_level() >= LEVEL_DEBUG)
+                        chprintf((BaseSequentialStream*)SDU1,
+                                "ESP_MSG_IP: CR or , not found\r\n");
+                }
             }
             break;
         case ESP_MSG_JOIN:
@@ -543,19 +557,25 @@ static void esp_state_machine(void)
         case ESP_MSG_STATUS:
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
-                // Print first line of response from ESP only
+                // Look for STATUS:2 and set ipstatus to 2
                 bufptr = strstr(esp_buffer, "STATUS:");
-                // Update status struct with integer status value
-                esp_status.ipstatus = (uint8_t)(*(bufptr+7) - 48);
-                esp_curmsg_delete();
+                if(bufptr)
+                {
+                    // Update status struct with integer status value
+                    esp_status.ipstatus = (uint8_t)(*(bufptr+7) - 48);
+                    esp_curmsg_delete();
+                } else {
+                    if(shell_get_level() >= LEVEL_DEBUG)
+                        chprintf((BaseSequentialStream*)SDU1,
+                                "ESP_MSG_STATUS: \"STATUS:\" not found\r\n");
+                }
             }
             break;
         case ESP_MSG_START:
+            // Will be "OK" or "ALREADY CONNECTED" depending on conn state
             if(strstr(esp_buffer, ESP_RESP_OK) || 
                     strstr(esp_buffer, ESP_RESP_ALREADY_CONNECTED))
             {
-                if(shell_get_level() >= LEVEL_DEBUG)
-                    chprintf((BaseSequentialStream*)SDU1, "Already\r\n");
                 esp_status.linkstatus = ESP_LINKED;
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
@@ -586,7 +606,7 @@ static void esp_state_machine(void)
                     strstr(esp_buffer, ESP_RESP_ERROR2))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
-                    chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
+                    chprintf((BaseSequentialStream*)SDU1, "POST error, retrying...\r\n");
                 esp_request(ESP_MSG_START, &curmsg->rfm_packet, ESP_PRIO_HIGH);
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
@@ -674,7 +694,8 @@ THD_FUNCTION(EspThread, arg)
             else if(chVTGetSystemTime() > timeout_timer + MS2ST(5000))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
-                    chprintf((BaseSequentialStream *)SDU1, "Aborting operation\r\n");
+                    chprintf((BaseSequentialStream *)SDU1,
+                            "Message timed out, aborting\r\n");
                 esp_curmsg_delete();
             }
             else
