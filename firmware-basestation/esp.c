@@ -591,7 +591,7 @@ static void esp_state_machine(void)
                     strstr(esp_buffer, ESP_RESP_ERROR2))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
-                    chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
+                    chprintf((BaseSequentialStream*)SDU1, "POST error, retrying\r\n");
                 esp_request(ESP_MSG_START, &curmsg->rfm_packet, ESP_PRIO_HIGH);
                 esp_curmsg_delete();
             }
@@ -609,7 +609,7 @@ static void esp_state_machine(void)
                     strstr(esp_buffer, ESP_RESP_ERROR2))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
-                    chprintf((BaseSequentialStream*)SDU1, "POST error, retrying...\r\n");
+                    chprintf((BaseSequentialStream*)SDU1, "POST error, retrying\r\n");
                 esp_request(ESP_MSG_START, &curmsg->rfm_packet, ESP_PRIO_HIGH);
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
