@@ -25,7 +25,8 @@
 
 
 //flash storage section
-#define FLASH_STORAGE_ADDR ((uint32_t)0x0800f800)
+//#define FLASH_STORAGE_ADDR ((uint32_t)0x0800f800)     //for 64k device
+#define FLASH_STORAGE_ADDR ((uint32_t)0x08007800)      //for 32k device
 #define FLASH_STORAGE_LEN 0x800
 #define FLASH_PAGE_SIZE 0x800
 
@@ -282,7 +283,7 @@ static void process_user_buffer(void)
 	uint8_t argn;
 
 	if (strncmp("help",user_input_buff,user_input_ptr) == 0)
-		user_send_non_blocking_str("\r\nAvailable commands: APSHOW, PASSTHROUGH, APCONNECT, SETNAME, IPCONFIG, DEBUGON, DEBUGOFF, ESPRST\r\n>");
+		user_send_non_blocking_str("\r\nAvailable commands: APSHOW, PASSTHROUGH, APCONNECT, SETNAME, IPCONFIG, DEBUGON, DEBUGOFF, ESPRST, ESPPROG\r\n>");
 	if (strncmp("PASSTHROUGH",user_input_buff,min(user_input_ptr,11)) == 0)
 		uart_passthrough = 1;
 	if (strncmp("APSHOW",user_input_buff,min(user_input_ptr,6)) == 0){
@@ -380,6 +381,7 @@ static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len,
 	uint16_t len = 0;
 	uint8_t run = 1;
 	char prev = 0;
+	uint8_t inquotes = 0;
 
 	if (*input == 0)
 		return 0;
@@ -387,8 +389,15 @@ static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len,
 	//find the initial command
 	while((run > 0) && (arg_end_count != 3))
 	{
-		if (((*input == ' ') || (*input == 0)) && (arg_start_count > 0) && (prev != ' ')){
+		if ((*input == '\"') && (prev == ' '))
+			inquotes = 1;
+		else if ((*input == '\"') && (inquotes == 1))
+			inquotes = 0;
+
+		if (((*input == ' ') || (*input == 0)) && (arg_start_count > 0) && (prev != ' ') && (inquotes == 0)){
 			arg_end_count++;
+			if ((prev == '\"') && (len > 0))
+				len--;
 			if (arg_end_count == 2){
 				*para1_len = len;
 			}
@@ -398,7 +407,7 @@ static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len,
 		}
 		if ((*input != ' ') && (arg_start_count == 0))
 			arg_start_count++;
-		if ((*input != ' ') && (arg_start_count == arg_end_count)){
+		if ((*input != ' ') && (arg_start_count == arg_end_count) && (*input != '\"')){
 			arg_start_count++;
 			if (arg_start_count == 2){
 				*para1 = input;
@@ -414,7 +423,8 @@ static uint8_t break_string_2_arg(char *input, char** para1, uint8_t* para1_len,
 		if (*input == 0)
 			run = 0;  //then exit the loop
 
-		len++;
+		if (!((*input == '\"') && (len == 0)))
+			len++;
 		prev = *input;
 		input++;
 	}
@@ -453,7 +463,7 @@ int main(void)
 #ifdef USE_HTU
 	htu21_init();
 #endif
-	init_wdt();
+//	init_wdt();
 
 	user_send_non_blocking_str("Booting... \r\n");
 
