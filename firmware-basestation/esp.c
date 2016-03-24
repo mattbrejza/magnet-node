@@ -23,7 +23,10 @@ static esp_status_t esp_status;
 static esp_config_t esp_config;
 
 /* The message we're currently processing, NULL if none */
-esp_message_t *curmsg;
+static esp_message_t *curmsg;
+
+/* Binary semaphore allowing us to use the SDU or not */
+extern mutex_t sdu_mutex;
 
 /**
  * Memory for the ESP buffers
@@ -676,6 +679,10 @@ THD_FUNCTION(EspThread, arg)
     // Loop forever for this thread
     while(TRUE)
     {
+        // Check we should not suspend for shell
+        chMtxLock(&sdu_mutex);
+        chMtxUnlock(&sdu_mutex);
+
         // If we're in the middle of a transaction, continue processing it
         if(curmsg != NULL)
         {

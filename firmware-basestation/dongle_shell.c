@@ -27,6 +27,11 @@
 /*===========================================================================*/
 
 /*
+ * Mutex for this thread completely owning serial-over-usb write rights
+ */
+mutex_t sdu_mutex;
+
+/*
  * Endpoints to be used for USBD1.
  */
 #define USBD1_DATA_REQUEST_EP           1
@@ -467,6 +472,9 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
 
         chprintf(chp, "done!\r\n");
 
+        // Signal lock on SDU
+        chMtxLock(&sdu_mutex);
+
         while(TRUE)
         {
             // Wait for data ESP -> PC
@@ -654,6 +662,11 @@ THD_FUNCTION(UsbSerThread, arg)
 {
     (void)arg;
     thread_t *shelltp = NULL;
+
+    /*
+     * Initialise semaphore
+     */
+    chMtxObjectInit(&sdu_mutex);
 
     /*
      * Level initially none

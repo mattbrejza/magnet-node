@@ -23,6 +23,9 @@
 #define RFM_SS_PORT     GPIOB
 #define RFM_SS_PIN      GPIOB_RFM_SS
 
+/* Binary semaphore allowing us to use the SDU or not */
+extern mutex_t sdu_mutex;
+
 /* Buffer for received data */
 static rfm_packet_t rfm_packet;
 
@@ -267,6 +270,10 @@ THD_FUNCTION(RfmThread, arg)
     // post them to the ESP mailbox for uploading
     while(TRUE)
     {
+        // Check we should not suspend for shell
+        chMtxLock(&sdu_mutex);
+        chMtxUnlock(&sdu_mutex);
+
         // Check for new packets
         rfm_receive(&rfm_packet, &len, &packetwaiting);
         if(packetwaiting)
