@@ -597,7 +597,7 @@ static void esp_state_machine(void)
             }
             break;
         case ESP_MSG_SEND:
-            if(strstr(esp_buffer, ESP_RESP_UNLINK))
+            if(strstr(esp_buffer, ESP_RESP_SENDOK))
             {
                 esp_status.linkstatus = ESP_NOTLINKED;
                 palSetPad(GPIOC, GPIOC_LED_WIFI);

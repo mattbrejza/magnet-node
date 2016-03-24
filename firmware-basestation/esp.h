@@ -123,6 +123,7 @@
 #define ESP_RESP_LINKED             "Linked\r\n"
 #define ESP_RESP_ALREADY_CONNECTED  "ALREADY CONNECT"
 #define ESP_RESP_UNLINK             "Unlink\r\n"
+#define ESP_RESP_SENDOK             "SEND OK\r\n"
 #define ESP_RESP_NOLINK             "link is not\r\n"
 
 /**
