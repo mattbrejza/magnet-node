@@ -409,7 +409,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     // Check args
     if(argc < 1)
     {
-        chprintf(chp, "Usage: esp [pt norm|boot] [ver] [reset] [status] [ip] [ap <ssid> <pass>] [origin <name>]\r\n");
+        chprintf(chp, "Usage: esp [pt norm|boot] | [ver] | [reset] | [status] | [ip] | [ap <ssid pass>] | [origin <name>] | testhttp\r\n");
         return;
     }
 
@@ -508,7 +508,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     } /* argv[0] is reset */
     else if(strcmp(argv[0], "ip") == 0)
     {
-        chprintf(chp, "Status: %s\r\n", esp_get_ip());
+        chprintf(chp, "IP: %s\r\n", esp_get_ip());
     } /* argv[0] is ip */
     else if(strcmp(argv[0], "ap") == 0)
     {
@@ -547,7 +547,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     {
         chprintf(chp, "Status: %d\r\n", esp_get_status());
     } /* argv[0] is status */
-    else if(strcmp(argv[0], "testsend") == 0)
+    else if(strcmp(argv[0], "testhttp") == 0)
     {
         rfm_packet_t packet;
         esp_config = esp_get_config();
@@ -585,13 +585,13 @@ static void cmd_show(BaseSequentialStream *chp, int argc, char *argv[]) {
         switch(_level)
         {
             case LEVEL_NONE:
-                chprintf(chp, "Level: none \r\n");
+                chprintf(chp, "Level: none\r\n");
                 break;
             case LEVEL_PACKET:
-                chprintf(chp, "Level: packet \r\n");
+                chprintf(chp, "Level: packet\r\n");
                 break;
             case LEVEL_DEBUG:
-                chprintf(chp, "Level: debug \r\n");
+                chprintf(chp, "Level: debug\r\n");
                 break;
         }
     } else {

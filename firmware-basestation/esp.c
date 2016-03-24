@@ -472,7 +472,7 @@ static void esp_state_machine(void)
     char *bufptr;
     char *bufptr2;
     uint8_t len;
-    char user_print_buf[32];
+    char user_print_buf[64];
 
     /* What we do here depends on what we're waiting for */
     switch(curmsg->opcode)
@@ -486,7 +486,7 @@ static void esp_state_machine(void)
                 {
                     len = bufptr - esp_buffer;
                     strncpy(user_print_buf, esp_buffer, len);
-                    user_print_buf[len] = '\0';
+                    user_print_buf[len-1] = '\0';
                     chprintf((BaseSequentialStream*)SDU1, "%s\r\n", user_print_buf);
                     esp_curmsg_delete();
                 } else {
