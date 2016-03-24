@@ -19,11 +19,9 @@
 #include "esp.h"
 #include "rfm.h"
 
-#define RFM_SPID        SPID1
-#define RFM_SS_PORT     GPIOB
-#define RFM_SS_PIN      GPIOB_RFM_SS
 
-/* Binary semaphore allowing us to use the SDU or not */
+
+/* Mutex allowing us to use the SDU or not */
 extern mutex_t sdu_mutex;
 
 /* Buffer for received data */
@@ -192,7 +190,8 @@ static rfm_status_t rfm_receive(rfm_packet_t* rfm_packet, rfm_reg_t* len,
     /* Check IRQ register for payloadready flag
      * (indicates RXed packet waiting in FIFO) */
     _rfm_read_register(RFM69_REG_28_IRQ_FLAGS2, &res);
-    if (res & RF_IRQFLAGS2_PAYLOADREADY) {
+    if(res & RF_IRQFLAGS2_PAYLOADREADY)
+    {
         /* Get packet length from first byte of FIFO */
         _rfm_read_register(RFM69_REG_00_FIFO, len);
         /* Read FIFO into our Buffer */
@@ -270,7 +269,9 @@ THD_FUNCTION(RfmThread, arg)
     // post them to the ESP mailbox for uploading
     while(TRUE)
     {
-        // Check we should not suspend for shell
+        // Check we should not suspend for shell. Lock will put the thread into
+        // a WTMTX state (suspended) if it's held by the shell. Otherwise we
+        // release it immediately and continue
         chMtxLock(&sdu_mutex);
         chMtxUnlock(&sdu_mutex);
 
@@ -288,9 +289,12 @@ THD_FUNCTION(RfmThread, arg)
             esp_request(ESP_MSG_START, &rfm_packet, ESP_PRIO_NORMAL);
             packetwaiting = false;
         }
-        chThdSleepMilliseconds(1);
-        if(chVTGetSystemTime() > led_timer + MS2ST(500))
-            palClearPad(GPIOC, GPIOC_LED_868);
+        else
+        {
+            chThdSleepMilliseconds(10);
+            if(chVTGetSystemTime() > led_timer + MS2ST(500))
+                palClearPad(GPIOC, GPIOC_LED_868);
+        }
     }
 }
 

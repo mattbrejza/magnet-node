@@ -24,6 +24,11 @@ typedef struct rfm_packet_t {
     int32_t rssi;
 } rfm_packet_t;
 
+/* Port info for RFM */
+#define RFM_SPID        SPID1
+#define RFM_SS_PORT     GPIOB
+#define RFM_SS_PIN      GPIOB_RFM_SS
+
 /* Write commands to the RFM have this bit set */
 #define RFM69_SPI_WRITE_MASK 0x80
 
@@ -36,22 +41,22 @@ typedef struct rfm_packet_t {
  * Can be pre-defined to a smaller size (to save SRAM) prior to including 
  * this header
  */
-#define RFM69_MAX_MESSAGE_LEN 64
+#define RFM69_MAX_MESSAGE_LEN       64
 
 /* Max number of octets the RFM69 FIFO can hold */
-#define RFM69_FIFO_SIZE 64
+#define RFM69_FIFO_SIZE             64
 
-#define RFM69_MODE_SLEEP    0x00 /* 0.1uA  */
-#define RFM69_MODE_STDBY    0x04 /* 1.25mA */
-#define RFM69_MODE_RX       0x10 /* 16mA   */
-#define RFM69_MODE_TX       0x0c /* >33mA  */
+#define RFM69_MODE_SLEEP            0x00 /* 0.1uA  */
+#define RFM69_MODE_STDBY            0x04 /* 1.25mA */
+#define RFM69_MODE_RX               0x10 /* 16mA   */
+#define RFM69_MODE_TX               0x0c /* >33mA  */
 
 /*
  * These values we set for FIFO thresholds are actually the same as the 
  * POR values
  */
-#define RF22_TXFFAEM_THRESHOLD 4
-#define RF22_RXFFAFULL_THRESHOLD 55
+#define RF22_TXFFAEM_THRESHOLD      4
+#define RF22_RXFFAFULL_THRESHOLD    55
 
 /* Register names */
 #define RFM69_REG_00_FIFO           0x00

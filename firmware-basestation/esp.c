@@ -25,7 +25,7 @@ static esp_config_t esp_config;
 /* The message we're currently processing, NULL if none */
 static esp_message_t *curmsg;
 
-/* Binary semaphore allowing us to use the SDU or not */
+/* Mutex allowing us to use the SDU or not */
 extern mutex_t sdu_mutex;
 
 /**
@@ -638,11 +638,11 @@ THD_FUNCTION(EspThread, arg)
     // Mailbox item
     intptr_t msg;
 
-    // Set up the ESP
-    esp_init();
-
     // Byte that we get from ESP
     char newbyte;
+
+    // Set up the ESP
+    esp_init();
 
     // Initialise start of buffer
     esp_buf_ptr = esp_buffer;
@@ -679,7 +679,9 @@ THD_FUNCTION(EspThread, arg)
     // Loop forever for this thread
     while(TRUE)
     {
-        // Check we should not suspend for shell
+        // Check we should not suspend for shell. Lock will put the thread into
+        // a WTMTX state (suspended) if it's held by the shell. Otherwise we
+        // release it immediately and continue
         chMtxLock(&sdu_mutex);
         chMtxUnlock(&sdu_mutex);
 
@@ -687,7 +689,7 @@ THD_FUNCTION(EspThread, arg)
         if(curmsg != NULL)
         {
             // Get a new byte if there is one
-            if( esp_receive_byte(&newbyte) > 0 )
+            if(esp_receive_byte(&newbyte) > 0)
             {
                 // Move serial chars into buffer (but ignore NULL)
                 // FIXME: Buffer overrun possible here
@@ -715,8 +717,8 @@ THD_FUNCTION(EspThread, arg)
         {
             // We've finished with the last transaction, wait for a new 
             // message in our mailbox and begin to process it
-            // If there is no message, this will stall and the RTOS will
-            // suspend this thread and do something else.
+            // TIME_IMMEDIATE ensures this does not block so other work can
+            // be done, so check mailbox_res.
             mailbox_res = chMBFetch(&esp_mailbox, (msg_t *)&msg, TIME_IMMEDIATE);
 
             // Check that we got something, otherwise pass
@@ -737,7 +739,7 @@ THD_FUNCTION(EspThread, arg)
             }
         }
 
-        // If more than 1 second has passed, update the status
+        // If some time has passed, update the status
         if(chVTGetSystemTime() - esp_status_timer > MS2ST(2000))
         {
             // Change LED
