@@ -499,12 +499,12 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
     else if(strcmp(argv[0], "ver") == 0)
     {
         /* Send request for ESP to print its version */
-        esp_request(ESP_MSG_VERSION, NULL);
+        esp_request(ESP_MSG_VERSION, NULL, ESP_PRIO_NORMAL);
     } /* argv[0] is ver */
     else if(strcmp(argv[0], "reset") == 0)
     {
         /* Ask to reset ESP */
-        esp_request(ESP_MSG_RST, NULL);
+        esp_request(ESP_MSG_RST, NULL, ESP_PRIO_NORMAL);
     } /* argv[0] is reset */
     else if(strcmp(argv[0], "ip") == 0)
     {
@@ -528,7 +528,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
             *tbuf_ptr++ = '"';
             *tbuf_ptr++ = '\0';
             esp_set_ssid_pass(argv[1], argv[2]);
-            esp_request(ESP_MSG_JOIN, &packet);
+            esp_request(ESP_MSG_JOIN, &packet, ESP_PRIO_NORMAL);
         } 
         else if(argc == 1)
         {
@@ -554,11 +554,11 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
         chsnprintf((char*)packet.payload, 64, 
                 "2aT19.0:dongle-test[%s]", esp_config->origin);
         packet.rssi = -60; // Set to -60dBm
-        esp_request(ESP_MSG_START, &packet);
+        esp_request(ESP_MSG_START, &packet, ESP_PRIO_NORMAL);
     }
     else if(strcmp(argv[0], "eoff") == 0)
     {
-        esp_request(ESP_MSG_ECHOOFF, NULL);
+        esp_request(ESP_MSG_ECHOOFF, NULL, ESP_PRIO_NORMAL);
     }
     else if(strcmp(argv[0], "origin") == 0)
     {

@@ -278,7 +278,7 @@ THD_FUNCTION(RfmThread, arg)
                         "Packet: %s (%ddBm)\r\n", 
                         rfm_packet.payload,
                         rfm_packet.rssi);
-            esp_request(ESP_MSG_START, &rfm_packet);
+            esp_request(ESP_MSG_START, &rfm_packet, ESP_PRIO_NORMAL);
             packetwaiting = false;
         }
         chThdSleepMilliseconds(1);

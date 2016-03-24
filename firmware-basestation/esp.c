@@ -405,7 +405,7 @@ static void esp_process_msg(esp_message_t* msg)
  * Receive a message from another thread. We allocate memory for the
  * esp_message_t and add it to the MailBox so that it will be processed.
  */
-void esp_request(uint32_t opcode, rfm_packet_t* packet)
+void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t prio)
 {
     void* msg_in_pool;
     msg_t retval;
@@ -426,8 +426,8 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet)
     // Put message into pool
     memcpy(msg_in_pool, (void *)&msg, sizeof(esp_message_t));
 
-    // Add to mailbox
-    if(opcode == ESP_MSG_SEND || opcode == ESP_MSG_CLOSE)
+    // Add to mailbox, if high priority then post to front of queue
+    if(prio == ESP_PRIO_HIGH)
         retval = chMBPostAhead(&esp_mailbox, (intptr_t)msg_in_pool, TIME_IMMEDIATE);
     else
         retval = chMBPost(&esp_mailbox, (intptr_t)msg_in_pool, TIME_IMMEDIATE);
@@ -494,13 +494,16 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_READY))
             {
                 chprintf((BaseSequentialStream*)SDU1, "ESP reset successful\r\n");
+                // Immediately re-disable echo
+                esp_request(ESP_MSG_ECHOOFF, NULL, ESP_PRIO_HIGH);
                 esp_curmsg_delete();
             }
             break;
         case ESP_MSG_ECHOOFF:
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
-                chprintf((BaseSequentialStream*)SDU1, "ESP echo off\r\n");
+                if(shell_get_level() >= LEVEL_DEBUG)
+                    chprintf((BaseSequentialStream*)SDU1, "ESP echo off\r\n");
                 esp_curmsg_delete();
             }
             break;
@@ -541,12 +544,9 @@ static void esp_state_machine(void)
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
                 // Print first line of response from ESP only
-                bufptr = strstr(esp_buffer, "\r");
-                len = bufptr - esp_buffer;
-                strncpy(user_print_buf, esp_buffer, len);
-                user_print_buf[len] = '\0';
+                bufptr = strstr(esp_buffer, "STATUS:");
                 // Update status struct with integer status value
-                esp_status.ipstatus = (uint8_t)(user_print_buf[len-1] - 48);
+                esp_status.ipstatus = (uint8_t)(*(bufptr+7) - 48);
                 esp_curmsg_delete();
             }
             break;
@@ -559,7 +559,7 @@ static void esp_state_machine(void)
                 esp_status.linkstatus = ESP_LINKED;
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
-                esp_request(ESP_MSG_SEND, &curmsg->rfm_packet);
+                esp_request(ESP_MSG_SEND, &curmsg->rfm_packet, ESP_PRIO_HIGH);
                 esp_curmsg_delete();
             }
             // If we get ERROR, or "link is not"; retry
@@ -569,7 +569,7 @@ static void esp_state_machine(void)
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
-                esp_request(ESP_MSG_START, &curmsg->rfm_packet);
+                esp_request(ESP_MSG_START, &curmsg->rfm_packet, ESP_PRIO_HIGH);
                 esp_curmsg_delete();
             }
             break;
@@ -587,7 +587,7 @@ static void esp_state_machine(void)
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream*)SDU1, "Error, dropping msg\r\n");
-                esp_request(ESP_MSG_START, &curmsg->rfm_packet);
+                esp_request(ESP_MSG_START, &curmsg->rfm_packet, ESP_PRIO_HIGH);
                 palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
@@ -649,9 +649,9 @@ THD_FUNCTION(EspThread, arg)
     }
 
     // Turn off ESP ECHO and enable station mode
-    esp_request(ESP_MSG_ECHOOFF, NULL);
-    esp_request(ESP_MSG_CWMODE, NULL);
-    esp_request(ESP_MSG_STATUS, NULL);
+    esp_request(ESP_MSG_ECHOOFF, NULL, ESP_PRIO_NORMAL);
+    esp_request(ESP_MSG_CWMODE, NULL, ESP_PRIO_NORMAL);
+    esp_request(ESP_MSG_STATUS, NULL, ESP_PRIO_NORMAL);
 
     // Loop forever for this thread
     while(TRUE)
@@ -662,12 +662,14 @@ THD_FUNCTION(EspThread, arg)
             // Get a new byte if there is one
             if( esp_receive_byte(&newbyte) > 0 )
             {
-                // Move into the buffer
+                // Move serial chars into buffer (but ignore NULL)
                 // FIXME: Buffer overrun possible here
-                *esp_buf_ptr++ = newbyte;
-                // Deal with the state machine
-                if(newbyte == '\n')
-                    esp_state_machine();
+                if(newbyte)
+                {
+                    *esp_buf_ptr++ = newbyte;
+                    if(newbyte == '\n')
+                        esp_state_machine();
+                }
             }
             else if(chVTGetSystemTime() > timeout_timer + MS2ST(5000))
             {
@@ -718,8 +720,8 @@ THD_FUNCTION(EspThread, arg)
             else
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
             // Update esp_status.ipstatus
-            esp_request(ESP_MSG_STATUS, NULL);
-            esp_request(ESP_MSG_IP, NULL);
+            esp_request(ESP_MSG_STATUS, NULL, ESP_PRIO_NORMAL);
+            esp_request(ESP_MSG_IP, NULL, ESP_PRIO_NORMAL);
             esp_status_timer = chVTGetSystemTime();
         }
     }
