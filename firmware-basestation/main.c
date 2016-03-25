@@ -22,11 +22,13 @@
 #include "dongle_shell.h"
 #include "esp.h"
 #include "rfm.h"
+#include "sensor.h"
 
 static THD_WORKING_AREA(waBlinker, 0x80);
 static THD_WORKING_AREA(waUsbSer, 0x100);
 static THD_WORKING_AREA(waEsp, 0x200);
 static THD_WORKING_AREA(waRFM, 0x200);
+static THD_WORKING_AREA(waSensor, 0x100);
 
 /*
  * Allow debugging (printf) to the debugging session
@@ -81,6 +83,11 @@ int main(void) {
      * Create USB Serial
      */
     chThdCreateStatic(waUsbSer, sizeof(waUsbSer), NORMALPRIO, UsbSerThread, NULL);
+
+    /*
+     * Create sensor thread
+     */
+    chThdCreateStatic(waSensor, sizeof(waSensor), NORMALPRIO, SensorThread, NULL);
 
     /*
      * Create ESP processing thread
