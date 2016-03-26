@@ -27,7 +27,7 @@ extern mutex_t sdu_mutex;
  * I2C2 config. See p643 of F0x2 refman.
  */
 const I2CConfig i2c2_config = { 
-    STM32_TIMINGR_PRESC(1U) |
+    STM32_TIMINGR_PRESC(11U) |
         STM32_TIMINGR_SCLDEL(4U) | STM32_TIMINGR_SDADEL(2U) |
         STM32_TIMINGR_SCLH(15U)  | STM32_TIMINGR_SCLL(19U),
     0,  
@@ -46,7 +46,7 @@ void sensor_read_temperature(void)
     uint8_t tx = HTU_READ_TEMP;
     msg_t res;
     // TIME_IMMEDIATE is not allowed here
-    res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 3,
+    res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 1,
             TIME_INFINITE);
     if(res == MSG_OK)
     {
