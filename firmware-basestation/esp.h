@@ -26,6 +26,11 @@
 #define ESP_OUT_BUF_SIZE 512
 
 /**
+ * Buffer size for extracting data from ESP responses
+ */
+#define USER_PRINT_BUF_SIZE 64
+
+/**
  * Number of items in the ESP thread processing mailbox
  */
 #define MAILBOX_ITEMS 8
