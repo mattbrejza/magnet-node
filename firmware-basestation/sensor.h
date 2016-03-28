@@ -16,6 +16,9 @@
 #define HTU_READ_TEMP 0xE3
 #define HTU_READ_HUMID 0xE5
 
+/* Sensor transmit every x seconds */
+#define SENSOR_INTERVAL 300
+
 /**
  * Sensor thread
  */

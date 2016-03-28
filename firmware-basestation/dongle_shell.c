@@ -560,7 +560,7 @@ static void cmd_esp(BaseSequentialStream *chp, int argc, char *argv[])
         rfm_packet_t packet;
         esp_config = esp_get_config();
         chsnprintf((char*)packet.payload, 64, 
-                "2aT19.0:dongle-test[%s]", esp_config->origin);
+                "0a:dongle-test[%s]", esp_config->origin);
         packet.rssi = -60; // Set to -60dBm
         esp_request(ESP_MSG_START, &packet, ESP_PRIO_NORMAL);
     }

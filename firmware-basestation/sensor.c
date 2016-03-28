@@ -19,14 +19,24 @@
 #include "esp.h"
 #include "rfm.h"
 #include "sensor.h"
+#include "esp.h"
 
 /* Mutex allowing us to use the SDU or not */
 extern mutex_t sdu_mutex;
 
+/* Timer for sending messages */
+systime_t _sensor_timer;
+
+/* Errors stored here */
+uint8_t _errors;
+
+/* Sequence id */
+static char _seqid = 'a';
+
 /*
  * I2C2 config. See p643 of F0x2 refman.
  */
-const I2CConfig i2c2_config = { 
+static const I2CConfig i2c2_config = { 
     STM32_TIMINGR_PRESC(11U) |
         STM32_TIMINGR_SCLDEL(4U) | STM32_TIMINGR_SDADEL(2U) |
         STM32_TIMINGR_SCLH(15U)  | STM32_TIMINGR_SCLL(19U),
@@ -40,7 +50,7 @@ static SerialUSBDriver *SDU1;
 /**
  * Read temperature
  */
-void sensor_read_temperature(void)
+static void sensor_read_temperature(void)
 {
     uint8_t buf[3];
     uint8_t tx = HTU_READ_TEMP;
@@ -56,6 +66,42 @@ void sensor_read_temperature(void)
 }
 
 /**
+ * Construct and post a sensor message
+ */
+static void sensor_message(void)
+{
+    // Packet
+    rfm_packet_t packet;
+    esp_config_t* config;
+
+    // Get esp config
+    config = esp_get_config();
+
+    // Wait until config is valid
+    while(!config->validity);
+
+    // Construct packet
+    chsnprintf((char *)packet.payload, 64, "0%cX%02X:%s[%s]",
+            _seqid,
+            _errors,
+            FW_VERSION,
+            config->origin);
+
+    // Set rssi to 0
+    packet.rssi = 0;
+
+    // Submit packet
+    esp_request(ESP_MSG_START, &packet, ESP_PRIO_NORMAL);
+
+    // Advance seqid
+    _seqid = (_seqid == 'z') ? 'b' : _seqid + 1;
+
+    // Reset timer and errors
+    _sensor_timer = chVTGetSystemTime();
+    _errors = 0;
+}
+
+/**
  * Main thread for HTU21
  */
 THD_FUNCTION(SensorThread, arg)
@@ -66,6 +112,12 @@ THD_FUNCTION(SensorThread, arg)
     // Get pointer to SDU so we cna print to shell
     SDU1 = usb_get_sdu();
     chThdSleepMilliseconds(100);
+
+    // Configure timer and send initial message
+    _sensor_timer = 0;
+
+    // Set errors all zero
+    _errors = 0;
 
     // Set up the SPI driver
     i2cStart(&I2CD2, &i2c2_config);
@@ -78,9 +130,14 @@ THD_FUNCTION(SensorThread, arg)
         chMtxLock(&sdu_mutex);
         chMtxUnlock(&sdu_mutex);
 
-        // Read temperature
-        sensor_read_temperature();
-        chThdSleepMilliseconds(1000);
+        if(chVTGetSystemTime() > _sensor_timer + S2ST(SENSOR_INTERVAL))
+        {
+            sensor_message();
+        }
+        else
+        {
+            chThdSleepMilliseconds(1000);
+        }
     }
 }
 

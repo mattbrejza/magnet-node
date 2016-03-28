@@ -387,17 +387,23 @@ static void esp_process_msg(esp_message_t* msg)
                     chThdSleepMilliseconds(10);
                 } else {
                     if(shell_get_level() >= LEVEL_DEBUG)
-                        chprintf((BaseSequentialStream *)SDU1, "Set origin (> esp origin) and SSID/password (> esp ap)\r\n");
+                        chprintf((BaseSequentialStream *)SDU1,
+                                "Set origin (> esp origin) and SSID/password (> esp ap)\r\n");
                 }
             }
             else
             {
-                /* Drop this since no connection/no ip */
+                /* Relegate this request since no connection/no ip */
+                if(shell_get_level() >= LEVEL_DEBUG)
+                    chprintf((BaseSequentialStream *)SDU1,
+                            "No connection/IP, dropping\r\n");
                 esp_curmsg_delete();
             }
             break;
         default:
-            curmsg = NULL;
+            chprintf((BaseSequentialStream *)SDU1,
+                    "esp_process_msg: invalid opcode\r\n");
+            esp_curmsg_delete();
             break;
     }
 
@@ -424,7 +430,12 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t prio)
 
     // Allocate memory for it in the pool
     msg_in_pool = chPoolAlloc(&mailbox_mempool);
-    if(msg_in_pool == NULL) return;
+    if(msg_in_pool == NULL)
+    {
+        if(shell_get_level() >= LEVEL_DEBUG)
+            chprintf((BaseSequentialStream *)SDU1, "Mempool allocation failed\r\n");
+        return;
+    }
 
     // Put message into pool
     memcpy(msg_in_pool, (void *)&msg, sizeof(esp_message_t));
@@ -436,7 +447,7 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t prio)
         retval = chMBPost(&esp_mailbox, (intptr_t)msg_in_pool, TIME_IMMEDIATE);
 
     // Check MB response
-    if( retval != MSG_OK )
+    if(retval != MSG_OK)
     {
         // Something went wrong, free the memory and return
         if(shell_get_level() >= LEVEL_DEBUG)
@@ -483,7 +494,7 @@ static void esp_state_machine(void)
         case ESP_MSG_VERSION:
             if(strstr(esp_buffer, ESP_RESP_OK))
             {
-                // Find first \n and print the first line pf response
+                // Find first \n and print the first line of response
                 bufptr = strstr(esp_buffer, "\n");
                 // Will be null if not found, in this case wait for next line
                 if(bufptr)
