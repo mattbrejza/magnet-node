@@ -51,6 +51,15 @@ static const I2CConfig i2c2_config = {
 static SerialUSBDriver *SDU1;
 
 /**
+ * Report an error to be sent in the next packet
+ * @param error The error to report (in sensor.h)
+ */
+void sensor_log_error(uint8_t error)
+{
+    _errors |= error;
+}
+
+/**
  * Read temperature
  */
 static void sensor_read(void)
@@ -64,31 +73,37 @@ static void sensor_read(void)
     tx = HTU_READ_TEMP;
     // TIME_IMMEDIATE is not allowed here
     res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 3,
-            TIME_INFINITE);
+            MS2ST(100));
     if(res == MSG_OK)
     {
         t = (float)((buf[0] << 8) | buf[1])  / 65536.0;
         t = t * 175.72 - 46.85;
         readings.temp = (uint8_t)t;
-        readings.temp_dec = (uint8_t)(t*10 - (float)readings.temp*10);
+        readings.temp_dec = (uint8_t)(t*100 - (float)readings.temp*100);
         readings.temp_valid = 1;
     }
     else
     {
+        if(res == MSG_TIMEOUT)
+            sensor_log_error(ERROR_HTU_TIMEOUT);
         readings.temp_valid = 0;
     }
     // Now do humidity
     tx = HTU_READ_HUMID;
     res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 3,
-            TIME_INFINITE);
+            MS2ST(100));
     if(res == MSG_OK)
     {
         t = (float)((buf[0] << 8) | buf[1])  / 65536.0;
-        readings.humid = (uint8_t)(t * 125.0 - 6.0);
+        t = t * 125.0 - 6.0;
+        readings.humid = (uint8_t)t;
+        readings.humid_dec = (uint8_t)(t*10 - (float)readings.humid*10);
         readings.humid_valid = 1;
     }
     else
     {
+        if(res == MSG_TIMEOUT)
+            sensor_log_error(ERROR_HTU_TIMEOUT);
         readings.humid_valid = 0;
     }
 }
@@ -100,16 +115,43 @@ static void sensor_message(esp_config_t* config)
 {
     // Packet
     rfm_packet_t packet;
+    char *packetptr;
+    size_t written, remaining;
 
     // Wait until config is valid
     while(!config->validity);
 
     // Construct packet
-    chsnprintf((char *)packet.payload, 64, "0%cT%u.%uH%uX%02X:%s[%s]",
-            _seqid,
-            readings.temp,
-            readings.temp_dec,
+    packetptr = (char *)packet.payload;
+    remaining = RFM69_MAX_MESSAGE_LEN;
+
+    // Write hops and sequence ID
+    written = chsnprintf(packetptr, remaining, "0%c", _seqid);
+    packetptr += written;
+    remaining -= written;
+    
+    // If temperature valid, append
+    if(readings.temp_valid)
+    {
+        written = chsnprintf(packetptr, remaining, "T%u.%u",
+                readings.temp,
+                readings.temp_dec);
+        packetptr += written;
+        remaining -= written;
+    }
+    
+    // If humidity valid, append
+    if(readings.humid_valid)
+    {
+        written = chsnprintf(packetptr, remaining, "H%u.%u",
             readings.humid,
+            readings.humid_dec);
+        packetptr += written;
+        remaining -= written;
+    }
+    
+    // And the rest
+    written = chsnprintf(packetptr, remaining, "X%02X:%s[%s]",
             _errors,
             FW_VERSION,
             config->origin);
