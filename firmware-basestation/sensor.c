@@ -30,6 +30,9 @@ systime_t _sensor_timer;
 /* Errors stored here */
 uint8_t _errors;
 
+/* Readings */
+static readings_t readings;
+
 /* Sequence id */
 static char _seqid = 'a';
 
@@ -50,39 +53,63 @@ static SerialUSBDriver *SDU1;
 /**
  * Read temperature
  */
-static void sensor_read_temperature(void)
+static void sensor_read(void)
 {
     uint8_t buf[3];
-    uint8_t tx = HTU_READ_TEMP;
+    uint8_t tx;
+    float t;
     msg_t res;
+
+    // Temperature first
+    tx = HTU_READ_TEMP;
     // TIME_IMMEDIATE is not allowed here
-    res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 1,
+    res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 3,
             TIME_INFINITE);
     if(res == MSG_OK)
     {
-        chprintf((BaseSequentialStream*)SDU1, "%02X %02X %02X\r\n", buf[0],
-                buf[1], buf[2]);
+        t = (float)((buf[0] << 8) | buf[1])  / 65536.0;
+        t = t * 175.72 - 46.85;
+        readings.temp = (uint8_t)t;
+        readings.temp_dec = (uint8_t)(t*10 - (float)readings.temp*10);
+        readings.temp_valid = 1;
+    }
+    else
+    {
+        readings.temp_valid = 0;
+    }
+    // Now do humidity
+    tx = HTU_READ_HUMID;
+    res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 3,
+            TIME_INFINITE);
+    if(res == MSG_OK)
+    {
+        t = (float)((buf[0] << 8) | buf[1])  / 65536.0;
+        readings.humid = (uint8_t)(t * 125.0 - 6.0);
+        readings.humid_valid = 1;
+    }
+    else
+    {
+        readings.humid_valid = 0;
     }
 }
 
 /**
  * Construct and post a sensor message
  */
-static void sensor_message(void)
+static void sensor_message(esp_config_t* config)
 {
     // Packet
     rfm_packet_t packet;
-    esp_config_t* config;
-
-    // Get esp config
-    config = esp_get_config();
 
     // Wait until config is valid
     while(!config->validity);
 
     // Construct packet
-    chsnprintf((char *)packet.payload, 64, "0%cX%02X:%s[%s]",
+    chsnprintf((char *)packet.payload, 64, "0%cT%u.%uH%uX%02X:%s[%s]",
             _seqid,
+            readings.temp,
+            readings.temp_dec,
+            readings.humid,
             _errors,
             FW_VERSION,
             config->origin);
@@ -113,11 +140,17 @@ THD_FUNCTION(SensorThread, arg)
     SDU1 = usb_get_sdu();
     chThdSleepMilliseconds(100);
 
+    esp_config_t* esp_config = esp_get_config();
+
     // Configure timer and send initial message
     _sensor_timer = 0;
 
     // Set errors all zero
     _errors = 0;
+
+    // Readings invalid to begin with
+    readings.temp_valid = 0;
+    readings.humid_valid = 0;
 
     // Set up the SPI driver
     i2cStart(&I2CD2, &i2c2_config);
@@ -132,7 +165,8 @@ THD_FUNCTION(SensorThread, arg)
 
         if(chVTGetSystemTime() > _sensor_timer + S2ST(SENSOR_INTERVAL))
         {
-            sensor_message();
+            sensor_read();
+            sensor_message(esp_config);
         }
         else
         {

@@ -322,8 +322,8 @@
                                      PIN_MODE_ALTERNATE(GPIOB_ESP_RX) |     \
                                      PIN_MODE_INPUT(GPIOB_PIN8) |           \
                                      PIN_MODE_OUTPUT(GPIOB_RFM_SS) |         \
-                                     PIN_MODE_INPUT(GPIOB_HTU_SCL) |          \
-                                     PIN_MODE_INPUT(GPIOB_HTU_SDA) |          \
+                                     PIN_MODE_ALTERNATE(GPIOB_HTU_SCL) |    \
+                                     PIN_MODE_ALTERNATE(GPIOB_HTU_SDA) |    \
                                      PIN_MODE_INPUT(GPIOB_PIN12) |          \
                                      PIN_MODE_ALTERNATE(GPIOB_SPI2_SCK) |   \
                                      PIN_MODE_ALTERNATE(GPIOB_SPI2_MISO) |  \
@@ -369,9 +369,9 @@
                                      PIN_PUPDR_FLOATING(GPIOB_ESP_TX) |     \
                                      PIN_PUPDR_FLOATING(GPIOB_ESP_RX) |     \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN8) |         \
-                                     PIN_PUPDR_PULLUP(GPIOB_RFM_SS) |        \
-                                     PIN_PUPDR_PULLUP(GPIOB_HTU_SCL) |        \
-                                     PIN_PUPDR_PULLUP(GPIOB_HTU_SDA) |        \
+                                     PIN_PUPDR_PULLUP(GPIOB_RFM_SS) |       \
+                                     PIN_PUPDR_FLOATING(GPIOB_HTU_SCL) |    \
+                                     PIN_PUPDR_FLOATING(GPIOB_HTU_SDA) |    \
                                      PIN_PUPDR_PULLUP(GPIOB_PIN12) |        \
                                      PIN_PUPDR_FLOATING(GPIOB_SPI2_SCK) |   \
                                      PIN_PUPDR_FLOATING(GPIOB_SPI2_MISO) |  \

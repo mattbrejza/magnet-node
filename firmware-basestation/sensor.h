@@ -19,6 +19,14 @@
 /* Sensor transmit every x seconds */
 #define SENSOR_INTERVAL 300
 
+typedef struct readings_t {
+    uint8_t temp;
+    uint8_t temp_dec;
+    uint8_t humid;
+    uint8_t temp_valid;
+    uint8_t humid_valid;
+} readings_t;
+
 /**
  * Sensor thread
  */

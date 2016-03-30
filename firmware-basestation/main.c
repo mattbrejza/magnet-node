@@ -28,7 +28,7 @@ static THD_WORKING_AREA(waBlinker, 0x80);
 static THD_WORKING_AREA(waUsbSer, 0x100);
 static THD_WORKING_AREA(waEsp, 0x200);
 static THD_WORKING_AREA(waRFM, 0x200);
-static THD_WORKING_AREA(waSensor, 0x100);
+static THD_WORKING_AREA(waSensor, 0x200);
 
 /*
  * Allow debugging (printf) to the debugging session
