@@ -24,18 +24,6 @@
 /* Mutex allowing us to use the SDU or not */
 extern mutex_t sdu_mutex;
 
-/* Timer for sending messages */
-systime_t _sensor_timer;
-
-/* Errors stored here */
-uint8_t _errors;
-
-/* Readings */
-static readings_t readings;
-
-/* Sequence id */
-static char _seqid = 'a';
-
 /*
  * I2C2 config. See p643 of F0x2 refman.
  */
@@ -54,41 +42,51 @@ static SerialUSBDriver *SDU1;
  * Report an error to be sent in the next packet
  * @param error The error to report (in sensor.h)
  */
-void sensor_log_error(uint8_t error)
+void sensor_log_error(uint8_t *errors, uint8_t error)
 {
-    _errors |= error;
+    *errors |= error;
 }
 
 /**
  * Read temperature
  */
-static void sensor_read(void)
+static void sensor_read(readings_t *readings, uint8_t *errors)
 {
     uint8_t buf[3];
     uint8_t tx;
     float t;
     msg_t res;
 
+    // If timed out last time, reset I2C periph to remove it
+    // from I2C_LOCKED state
+    if(!readings->temp_valid || !readings->humid_valid)
+    {
+        i2cStop(&I2CD2);
+        i2cStart(&I2CD2, &i2c2_config);
+    }
+
     // Temperature first
     tx = HTU_READ_TEMP;
-    // TIME_IMMEDIATE is not allowed here
     res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 3,
             MS2ST(100));
     if(res == MSG_OK)
     {
         t = (float)((buf[0] << 8) | buf[1])  / 65536.0;
         t = t * 175.72 - 46.85;
-        readings.temp = (uint8_t)t;
-        readings.temp_dec = (uint8_t)(t*100 - (float)readings.temp*100);
-        readings.temp_valid = 1;
+        readings->temp = (uint8_t)t;
+        readings->temp_dec = (uint8_t)(t*100 - (float)readings->temp*100);
+        readings->temp_valid = 1;
     }
     else
     {
         if(res == MSG_TIMEOUT)
-            sensor_log_error(ERROR_HTU_TIMEOUT);
-        readings.temp_valid = 0;
+            sensor_log_error(errors, ERROR_HTU_TIMEOUT);
+        readings->temp_valid = 0;
+        readings->humid_valid = 0;
+        return;
     }
-    // Now do humidity
+
+    // Now humidity
     tx = HTU_READ_HUMID;
     res = i2cMasterTransmitTimeout(&I2CD2, HTU_ADDR, &tx, 1, buf, 3,
             MS2ST(100));
@@ -96,22 +94,24 @@ static void sensor_read(void)
     {
         t = (float)((buf[0] << 8) | buf[1])  / 65536.0;
         t = t * 125.0 - 6.0;
-        readings.humid = (uint8_t)t;
-        readings.humid_dec = (uint8_t)(t*10 - (float)readings.humid*10);
-        readings.humid_valid = 1;
+        readings->humid = (uint8_t)t;
+        readings->humid_dec = (uint8_t)(t*10 - (float)readings->humid*10);
+        readings->humid_valid = 1;
     }
     else
     {
         if(res == MSG_TIMEOUT)
-            sensor_log_error(ERROR_HTU_TIMEOUT);
-        readings.humid_valid = 0;
+            sensor_log_error(errors, ERROR_HTU_TIMEOUT);
+        readings->humid_valid = 0;
+        return;
     }
 }
 
 /**
  * Construct and post a sensor message
  */
-static void sensor_message(esp_config_t* config)
+static void sensor_message(esp_config_t* config, readings_t *readings,
+        uint8_t *errors, char *seqid, systime_t *sensor_timer)
 {
     // Packet
     rfm_packet_t packet;
@@ -126,52 +126,52 @@ static void sensor_message(esp_config_t* config)
     remaining = RFM69_MAX_MESSAGE_LEN;
 
     // Write hops and sequence ID
-    written = chsnprintf(packetptr, remaining, "0%c", _seqid);
+    written = chsnprintf(packetptr, remaining, "0%c", *seqid);
     packetptr += written;
     remaining -= written;
     
     // If temperature valid, append
-    if(readings.temp_valid)
+    if(readings->temp_valid)
     {
         written = chsnprintf(packetptr, remaining, "T%u.%u",
-                readings.temp,
-                readings.temp_dec);
+                readings->temp,
+                readings->temp_dec);
         packetptr += written;
         remaining -= written;
     }
     
     // If humidity valid, append
-    if(readings.humid_valid)
+    if(readings->humid_valid)
     {
         written = chsnprintf(packetptr, remaining, "H%u.%u",
-            readings.humid,
-            readings.humid_dec);
+            readings->humid,
+            readings->humid_dec);
         packetptr += written;
         remaining -= written;
     }
     
     // And the rest
     written = chsnprintf(packetptr, remaining, "X%02X:%s[%s]",
-            _errors,
+            *errors,
             FW_VERSION,
             config->origin);
 
     // Set rssi to 0
     packet.rssi = 0;
 
-    // Submit packet
+    // Submit packet to ESP thread for posting
     esp_request(ESP_MSG_START, &packet, ESP_PRIO_NORMAL);
 
     // Advance seqid
-    _seqid = (_seqid == 'z') ? 'b' : _seqid + 1;
+    *seqid = (*seqid == 'z') ? 'b' : *seqid + 1;
 
     // Reset timer and errors
-    _sensor_timer = chVTGetSystemTime();
-    _errors = 0;
+    *sensor_timer = chVTGetSystemTime();
+    *errors = 0;
 }
 
 /**
- * Main thread for HTU21
+ * Main thread for reading from onboard sensors
  */
 THD_FUNCTION(SensorThread, arg)
 {
@@ -182,20 +182,22 @@ THD_FUNCTION(SensorThread, arg)
     SDU1 = usb_get_sdu();
     chThdSleepMilliseconds(100);
 
+    // Get ESP config
     esp_config_t* esp_config = esp_get_config();
 
-    // Configure timer and send initial message
-    _sensor_timer = 0;
+    /* Sequence id */
+    char seqid = 'a';
 
-    // Set errors all zero
-    _errors = 0;
+    /* Timer for sending messages */
+    systime_t sensor_timer = 0;
 
-    // Readings invalid to begin with
+    /* Errors stored here */
+    uint8_t errors = 0;
+
+    /* Readings */
+    readings_t readings;
     readings.temp_valid = 0;
     readings.humid_valid = 0;
-
-    // Set up the SPI driver
-    i2cStart(&I2CD2, &i2c2_config);
 
     while(TRUE)
     {
@@ -205,10 +207,12 @@ THD_FUNCTION(SensorThread, arg)
         chMtxLock(&sdu_mutex);
         chMtxUnlock(&sdu_mutex);
 
-        if(chVTGetSystemTime() > _sensor_timer + S2ST(SENSOR_INTERVAL))
+        // Read sensors and send a packet to server
+        if(chVTGetSystemTime() > sensor_timer + S2ST(SENSOR_INTERVAL))
         {
-            sensor_read();
-            sensor_message(esp_config);
+            sensor_read(&readings, &errors);
+            sensor_message(esp_config, &readings, &errors,
+                    &seqid, &sensor_timer);
         }
         else
         {

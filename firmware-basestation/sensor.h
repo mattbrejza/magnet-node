@@ -32,7 +32,7 @@ typedef struct readings_t {
     uint8_t humid_valid;
 } readings_t;
 
-void sensor_log_error(uint8_t error);
+void sensor_log_error(uint8_t *errors, uint8_t error);
 
 /**
  * Sensor thread
