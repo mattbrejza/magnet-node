@@ -485,10 +485,10 @@ static uint8_t look_for_200(void)
 	if (response_buffer == 0)
 		return 0;
 	uint16_t i = 0;
-	while((i+7) < response_ptr)
+	while((i+11) < response_ptr)
 	{
-		if (response_buffer[i] == '2'){
-			if (strncmp_circ(response_buffer, "200 OK", i, response_maxlen, 6))
+		if (response_buffer[i] == '\"'){
+			if (strncmp_circ(response_buffer, "\"error\":0,", i, response_maxlen, 10))
 				return 1;
 		}
 		i++;
