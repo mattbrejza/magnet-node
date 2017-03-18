@@ -272,7 +272,14 @@ esp_config_t * esp_get_config(void)
  */
 static void esp_curmsg_delete(void)
 {
+    /* Remove message from mempool */
     chPoolFree(&mailbox_mempool, (void *)curmsg);
+
+    /* Reset the incoming ESP data buffer */
+    memset(esp_buffer, 0, ESP_BUFFER_SIZE);
+    esp_buf_ptr = esp_buffer;
+
+    /* Now set curmsg to NULL to let thread know we're ready for a new one */
     curmsg = NULL;
 }
 
@@ -467,17 +474,15 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t prio)
  * @param buf The buffer into which we should receive data
  * @returns The number of bytes received
  */
-static size_t esp_receive_byte(char* buf)
+static size_t esp_receive_byte(char **buf)
 {
-    msg_t resp;
-    resp = sdGetTimeout(&SD1, TIME_IMMEDIATE);
-    if (resp == Q_TIMEOUT || resp == Q_RESET)
-    {
-        return 0;
-    } else  {
-        *buf = (char)resp;
-        return 1;
-    }
+    size_t nbytes;
+    
+    // Get data from SD stream
+    nbytes = sdReadTimeout(&SD1, (uint8_t *)(*buf), SERIAL_BUFFERS_SIZE, TIME_IMMEDIATE);
+    *buf += nbytes;
+
+    return nbytes;
 }
 
 /**
@@ -646,7 +651,8 @@ static void esp_state_machine(void)
             // If we get ERROR, or "link is not"; retry
             else if(strstr(esp_buffer, ESP_RESP_ERROR) ||
                     strstr(esp_buffer, ESP_RESP_NOLINK) ||
-                    strstr(esp_buffer, ESP_RESP_ERROR2))
+                    strstr(esp_buffer, ESP_RESP_ERROR2) ||
+                    strstr(esp_buffer, ESP_RESP_SENDFAIL))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream*)SDU1,
@@ -680,7 +686,7 @@ THD_FUNCTION(EspThread, arg)
     intptr_t msg;
 
     // Byte that we get from ESP
-    char newbyte;
+    size_t newbytes;
 
     // Set up the ESP
     esp_init();
@@ -729,19 +735,13 @@ THD_FUNCTION(EspThread, arg)
         // If we're in the middle of a transaction, continue processing it
         if(curmsg != NULL)
         {
-            // Get a new byte if there is one
-            if(esp_receive_byte(&newbyte) > 0)
+            // Get new bytes if there are some
+            newbytes = esp_receive_byte(&esp_buf_ptr);
+            if(newbytes > 0)
             {
-                // Move serial chars into buffer (but ignore NULL)
-                // FIXME: Buffer overrun possible here
-                if(newbyte)
-                {
-                    *esp_buf_ptr++ = newbyte;
-                    if(newbyte == '\n')
-                        esp_state_machine();
-                }
+                esp_state_machine();
             }
-            else if(chVTGetSystemTime() > timeout_timer + MS2ST(500))
+            else if(chVTGetSystemTime() > timeout_timer + MS2ST(5000))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream *)SDU1,
@@ -769,10 +769,6 @@ THD_FUNCTION(EspThread, arg)
             }
             else
             {
-                // Discard everything in buffer
-                memset(esp_buffer, 0, ESP_BUFFER_SIZE);
-                esp_buf_ptr = esp_buffer;
-
                 // Process this message
                 curmsg = (esp_message_t *)msg;
                 timeout_timer = chVTGetSystemTime();
@@ -781,7 +777,7 @@ THD_FUNCTION(EspThread, arg)
         }
 
         // If some time has passed, update the status
-        if(chVTGetSystemTime() - esp_status_timer > MS2ST(2000))
+        if(chVTGetSystemTime() - esp_status_timer > MS2ST(10000))
         {
             // Change LED
             if(esp_status.ipstatus > 1 && esp_status.ipstatus < 5
