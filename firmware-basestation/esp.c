@@ -472,10 +472,12 @@ static size_t esp_receive_byte(char* buf)
     msg_t resp;
     resp = sdGetTimeout(&SD1, TIME_IMMEDIATE);
     if (resp == Q_TIMEOUT || resp == Q_RESET)
+    {
         return 0;
-    else
+    } else  {
         *buf = (char)resp;
         return 1;
+    }
 }
 
 /**
@@ -739,7 +741,7 @@ THD_FUNCTION(EspThread, arg)
                         esp_state_machine();
                 }
             }
-            else if(chVTGetSystemTime() > timeout_timer + MS2ST(5000))
+            else if(chVTGetSystemTime() > timeout_timer + MS2ST(500))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream *)SDU1,
