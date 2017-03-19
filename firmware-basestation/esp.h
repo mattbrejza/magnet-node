@@ -175,7 +175,7 @@ typedef struct esp_config_t {
 } esp_config_t;
 
 void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t retries,
-        uint8_t prio);
+        systime_t timestamp, uint8_t prio);
 void esp_set_origin(char *neworigin);
 void esp_set_ssid_pass(char* ssid, char* pass);
 uint8_t esp_get_status(void);

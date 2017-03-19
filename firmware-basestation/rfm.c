@@ -303,7 +303,7 @@ THD_FUNCTION(RfmThread, arg)
                         rfm_packet.payload,
                         rfm_packet.rssi);
             esp_request(ESP_MSG_START, &rfm_packet, ESP_RETRIES_MAX,
-                    ESP_PRIO_NORMAL);
+                    chVTGetSystemTime(), ESP_PRIO_NORMAL);
             // Reset the timeout timer
             rfm_timeout_timer = chVTGetSystemTime();
             packetwaiting = false;

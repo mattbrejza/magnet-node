@@ -413,8 +413,12 @@ static void esp_process_msg(esp_message_t* msg)
                     chThdSleepMilliseconds(10);
                 } else {
                     if(shell_get_level() >= LEVEL_DEBUG)
+                    {
                         chprintf((BaseSequentialStream *)SDU1,
-                                "Set origin (> esp origin) and SSID/password (> esp ap)\r\n");
+                                "Set origin (> esp origin) and  SSID/password \
+                                (> esp ap)\r\n");
+                        esp_curmsg_delete();
+                    }
                 }
             }
             else
@@ -422,7 +426,9 @@ static void esp_process_msg(esp_message_t* msg)
                 /* Relegate this request since no connection/no ip */
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream *)SDU1,
-                            "No connection/IP, dropping\r\n");
+                            "No connection/IP, re-queueing\r\n");
+                esp_request(ESP_MSG_START, &curmsg->rfm_packet, 
+                        curmsg->retries, curmsg->timestamp, ESP_PRIO_NORMAL);
                 esp_curmsg_delete();
             }
             break;
@@ -441,7 +447,7 @@ static void esp_process_msg(esp_message_t* msg)
  * esp_message_t and add it to the MailBox so that it will be processed.
  */
 void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t retries,
-        uint8_t prio)
+        systime_t timestamp, uint8_t prio)
 {
     void* msg_in_pool;
     msg_t retval;
@@ -450,7 +456,7 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t retries,
     esp_message_t msg;
     msg.opcode = opcode;
     msg.retries = retries;
-    msg.timestamp = chVTGetSystemTime();
+    msg.timestamp = timestamp;
     if(packet != NULL)
     {
         strncpy((char *)msg.rfm_packet.payload, (char *)packet->payload, 64);
@@ -558,7 +564,8 @@ static void esp_state_machine(void)
             {
                 chprintf((BaseSequentialStream*)SDU1, "ESP reset OK\r\n");
                 // Immediately re-disable echo, try once
-                esp_request(ESP_MSG_ECHOOFF, NULL, 1, ESP_PRIO_HIGH);
+                esp_request(ESP_MSG_ECHOOFF, NULL, 1, chVTGetSystemTime(),
+                        ESP_PRIO_HIGH);
                 esp_curmsg_delete();
             }
             break;
@@ -649,7 +656,7 @@ static void esp_state_machine(void)
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
                 // The payload of curmsg is the packet data from the RFM
                 esp_request(ESP_MSG_SEND, &curmsg->rfm_packet, 
-                        ESP_RETRIES_MAX, ESP_PRIO_HIGH);
+                        ESP_RETRIES_MAX, curmsg->timestamp, ESP_PRIO_HIGH);
                 esp_curmsg_delete();
             }
             // If we get ERROR, or "link is not"; retry
@@ -665,7 +672,7 @@ static void esp_state_machine(void)
                                 "MSG_START: POST error: %d retries left\r\n",
                                 curmsg->retries);
                     esp_request(ESP_MSG_START, &curmsg->rfm_packet, 
-                            curmsg->retries, ESP_PRIO_HIGH);
+                            curmsg->retries, curmsg->timestamp, ESP_PRIO_HIGH);
                 } else {
                     if(shell_get_level() >= LEVEL_DEBUG)
                         chprintf((BaseSequentialStream*)SDU1,
@@ -696,7 +703,8 @@ static void esp_state_machine(void)
                                 "MSG_SEND: POST error: %d retries left\r\n",
                                 curmsg->retries);
                     esp_request(ESP_MSG_START, &curmsg->rfm_packet,
-                            ESP_RETRIES_MAX, ESP_PRIO_HIGH);
+                            ESP_RETRIES_MAX, curmsg->timestamp,
+                            ESP_PRIO_HIGH);
                 } else {
                     if(shell_get_level() >= LEVEL_DEBUG)
                         chprintf((BaseSequentialStream*)SDU1,
@@ -766,9 +774,9 @@ THD_FUNCTION(EspThread, arg)
     }
 
     // Turn off ESP ECHO and enable station mode
-    esp_request(ESP_MSG_ECHOOFF, NULL, 1, ESP_PRIO_NORMAL);
-    esp_request(ESP_MSG_CWMODE, NULL, 1, ESP_PRIO_NORMAL);
-    esp_request(ESP_MSG_STATUS, NULL, 1, ESP_PRIO_NORMAL);
+    esp_request(ESP_MSG_ECHOOFF, NULL, 1, chVTGetSystemTime(), ESP_PRIO_NORMAL);
+    esp_request(ESP_MSG_CWMODE, NULL, 1, chVTGetSystemTime(), ESP_PRIO_NORMAL);
+    esp_request(ESP_MSG_STATUS, NULL, 1, chVTGetSystemTime(), ESP_PRIO_NORMAL);
 
     // Loop forever for this thread
     while(TRUE)
@@ -838,8 +846,10 @@ THD_FUNCTION(EspThread, arg)
             else
                 palClearPad(GPIOC, GPIOC_LED_WIFI);
             // Update esp_status.ipstatus
-            esp_request(ESP_MSG_STATUS, NULL, 1, ESP_PRIO_NORMAL);
-            esp_request(ESP_MSG_IP, NULL, 1, ESP_PRIO_NORMAL);
+            esp_request(ESP_MSG_STATUS, NULL, 1, chVTGetSystemTime(), 
+                    ESP_PRIO_NORMAL);
+            esp_request(ESP_MSG_IP, NULL, 1, chVTGetSystemTime(),
+                    ESP_PRIO_NORMAL);
             esp_status_timer = chVTGetSystemTime();
         }
     }
