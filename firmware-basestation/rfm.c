@@ -19,13 +19,14 @@
 #include "esp.h"
 #include "rfm.h"
 
-
-
 /* Mutex allowing us to use the SDU or not */
 extern mutex_t sdu_mutex;
 
 /* Buffer for received data */
 static rfm_packet_t rfm_packet;
+
+// Timeout timer for the RFM
+static systime_t rfm_timeout_timer;
 
 // Baud rate = periph clock/3 = 1.5MHz
 // DS[0111] is 8 bit data transfers
@@ -213,26 +214,12 @@ static rfm_status_t rfm_receive(rfm_packet_t* rfm_packet, rfm_reg_t* len,
 }
 
 /**
- * Main thread for RFM69
+ * Initialise and configure the RFM
  */
-THD_FUNCTION(RfmThread, arg)
+static void rfm_init(void)
 {
-    (void)arg;
-    chRegSetThreadName("rfm");
     uint8_t i;
-    rfm_reg_t res, len;
-    bool packetwaiting;
-    systime_t led_timer;
-    
-    /* Set to true if packet waiting */
-    packetwaiting = false;
-    
-    // Get pointer to SDU so we cna print to shell
-    SDU1 = usb_get_sdu();
-    chThdSleepMilliseconds(100);
-
-    // Set up the SPI driver
-    spiStart(&RFM_SPID, &rfm_spicfg);
+    rfm_reg_t res;
 
     // Raise RST for 100us to reset the RFM
     palSetPad(GPIOA, GPIOA_RFM_RST);
@@ -250,9 +237,6 @@ THD_FUNCTION(RfmThread, arg)
     _mode = RFM69_MODE_RX;
     rfm_setmode(_mode);
 
-    /* Track time between LED flashes */
-    led_timer = chVTGetSystemTime();
-
     /* Zero version number, RFM probably not
      * connected/functioning */
     res = 0;
@@ -264,6 +248,38 @@ THD_FUNCTION(RfmThread, arg)
             chprintf((BaseSequentialStream *)SDU1, "RFM init failure\r\n");
         _rfm_read_register(RFM69_REG_10_VERSION, &res);
     }
+
+    // Start timeout timer
+    rfm_timeout_timer = chVTGetSystemTime();
+}
+
+/**
+ * Main thread for RFM69
+ */
+THD_FUNCTION(RfmThread, arg)
+{
+    (void)arg;
+    chRegSetThreadName("rfm");
+    uint8_t i;
+    rfm_reg_t len;
+    bool packetwaiting;
+    systime_t led_timer;
+    
+    /* Set to true if packet waiting */
+    packetwaiting = false;
+    
+    // Get pointer to SDU so we cna print to shell
+    SDU1 = usb_get_sdu();
+    chThdSleepMilliseconds(100);
+
+    // Set up the SPI driver
+    spiStart(&RFM_SPID, &rfm_spicfg);
+
+    /* Track time between LED flashes */
+    led_timer = chVTGetSystemTime();
+
+    // Init the RFM
+    rfm_init();
 
     // Regularly poll the RFM for new packets, and if we get them,
     // post them to the ESP mailbox for uploading
@@ -287,7 +303,15 @@ THD_FUNCTION(RfmThread, arg)
                         rfm_packet.payload,
                         rfm_packet.rssi);
             esp_request(ESP_MSG_START, &rfm_packet, ESP_PRIO_NORMAL);
+            // Reset the timeout timer
+            rfm_timeout_timer = chVTGetSystemTime();
             packetwaiting = false;
+        }
+        else if( chVTGetSystemTime() - rfm_timeout_timer > S2ST(60))
+        {
+            if(shell_get_level() >= LEVEL_DEBUG)
+                chprintf((BaseSequentialStream *)SDU1, "RFM timeout - rebooting...\r\n");
+            rfm_init();
         }
         else
         {

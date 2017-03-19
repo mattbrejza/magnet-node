@@ -33,7 +33,7 @@
 /**
  * Number of items in the ESP thread processing mailbox
  */
-#define MAILBOX_ITEMS 8
+#define MAILBOX_ITEMS 16
 
 /**
  * Priority levels for queueing messages for ESP

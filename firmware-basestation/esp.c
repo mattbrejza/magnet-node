@@ -275,10 +275,6 @@ static void esp_curmsg_delete(void)
     /* Remove message from mempool */
     chPoolFree(&mailbox_mempool, (void *)curmsg);
 
-    /* Reset the incoming ESP data buffer */
-    memset(esp_buffer, 0, ESP_BUFFER_SIZE);
-    esp_buf_ptr = esp_buffer;
-
     /* Now set curmsg to NULL to let thread know we're ready for a new one */
     curmsg = NULL;
 }
@@ -292,6 +288,15 @@ static void esp_process_msg(esp_message_t* msg)
     char contentlen_s[3];
     char rssilen_s[6];
 
+    /* Flush serial buffer */
+    while(sdGetTimeout(&SD1, TIME_IMMEDIATE) != Q_TIMEOUT);
+
+    /* Reset the incoming ESP data buffer */
+    memset(esp_buffer, 0, ESP_BUFFER_SIZE);
+    esp_buf_ptr = esp_buffer;
+
+    /* Got a message from the mailbox. What we do depends
+     * on its opcode */
     switch(msg->opcode)
     {
         case ESP_MSG_VERSION:
@@ -741,11 +746,15 @@ THD_FUNCTION(EspThread, arg)
             {
                 esp_state_machine();
             }
-            else if(chVTGetSystemTime() > timeout_timer + MS2ST(5000))
+            else if(chVTGetSystemTime() > timeout_timer + MS2ST(1000))
             {
                 if(shell_get_level() >= LEVEL_DEBUG)
                     chprintf((BaseSequentialStream *)SDU1,
-                            "Message timed out, aborting\r\n");
+                            "Abort - timeout message %02X\r\n",
+                            curmsg->opcode);
+                // Wait for ESP to finish doing whatever
+                chThdSleepMilliseconds(5000);
+                palSetPad(GPIOC, GPIOC_LED_WIFI);
                 esp_curmsg_delete();
             }
             else
