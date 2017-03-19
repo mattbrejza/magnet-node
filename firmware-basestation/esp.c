@@ -424,12 +424,11 @@ static void esp_process_msg(esp_message_t* msg)
             else
             {
                 /* Relegate this request since no connection/no ip */
-                if(shell_get_level() >= LEVEL_DEBUG)
-                    chprintf((BaseSequentialStream *)SDU1,
-                            "No connection/IP, re-queueing\r\n");
                 esp_request(ESP_MSG_START, &curmsg->rfm_packet, 
                         curmsg->retries, curmsg->timestamp, ESP_PRIO_NORMAL);
                 esp_curmsg_delete();
+                /* Might be spinning through queue fast, limit CPU */
+                chThdSleepMilliseconds(10);
             }
             break;
         default:
@@ -450,13 +449,16 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t retries,
         systime_t timestamp, uint8_t prio)
 {
     void* msg_in_pool;
-    msg_t retval;
+    msg_t retval, mailbox_res;
+    intptr_t dummy_msg;
 
     // Construct the message (allow NULL pointers here)
     esp_message_t msg;
     msg.opcode = opcode;
     msg.retries = retries;
     msg.timestamp = timestamp;
+
+    // Write rfm_packet_t into msg if it was provided
     if(packet != NULL)
     {
         strncpy((char *)msg.rfm_packet.payload, (char *)packet->payload, 64);
@@ -469,7 +471,27 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t retries,
     {
         if(shell_get_level() >= LEVEL_DEBUG)
             chprintf((BaseSequentialStream *)SDU1, "Mempool allocation failed\r\n");
-        return;
+
+        // Drop the first item in the mailbox and free its space in the mempool
+        mailbox_res = chMBFetch(&esp_mailbox, (msg_t *)&dummy_msg, TIME_IMMEDIATE);
+        if(mailbox_res != MSG_OK || dummy_msg == 0)
+        {
+            if(shell_get_level() >= LEVEL_DEBUG)
+                chprintf((BaseSequentialStream *)SDU1,
+                        "Could not fetch from mailbox\r\n");
+            return;
+        }
+        chPoolFree(&mailbox_mempool, (void *)dummy_msg);
+
+        // Now we can get a new place in the queue
+        msg_in_pool = chPoolAlloc(&mailbox_mempool);
+        if(msg_in_pool == NULL)
+        {
+            if(shell_get_level() >= LEVEL_DEBUG)
+                chprintf((BaseSequentialStream *)SDU1,
+                        "Alloc failed again! Giving up\r\n");
+            return;
+        }
     }
 
     // Put message into pool
