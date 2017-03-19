@@ -160,7 +160,7 @@ static void sensor_message(esp_config_t* config, readings_t *readings,
     packet.rssi = 0;
 
     // Submit packet to ESP thread for posting
-    esp_request(ESP_MSG_START, &packet, ESP_PRIO_NORMAL);
+    esp_request(ESP_MSG_START, &packet, ESP_RETRIES_MAX, ESP_PRIO_NORMAL);
 
     // Advance seqid
     *seqid = (*seqid == 'z') ? 'b' : *seqid + 1;

@@ -42,6 +42,11 @@
 #define ESP_PRIO_HIGH   1
 
 /**
+ * Max number of retries allowed for transactions to/from the ESP.
+ */
+#define ESP_RETRIES_MAX 3
+
+/**
  * Flash storage
  */
 #define FLASH_STORAGE_ADDR          ((uint32_t)0x0800fc00)
@@ -140,6 +145,7 @@
 typedef struct esp_message_t {
     uint32_t opcode;
     systime_t timestamp;
+    int32_t retries;
     rfm_packet_t rfm_packet;
 } esp_message_t;
 
@@ -168,7 +174,8 @@ typedef struct esp_config_t {
     int32_t validity;
 } esp_config_t;
 
-void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t prio);
+void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t retries,
+        uint8_t prio);
 void esp_set_origin(char *neworigin);
 void esp_set_ssid_pass(char* ssid, char* pass);
 uint8_t esp_get_status(void);
