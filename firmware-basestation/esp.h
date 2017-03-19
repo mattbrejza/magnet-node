@@ -139,6 +139,7 @@
  */
 typedef struct esp_message_t {
     uint32_t opcode;
+    systime_t timestamp;
     rfm_packet_t rfm_packet;
 } esp_message_t;
 

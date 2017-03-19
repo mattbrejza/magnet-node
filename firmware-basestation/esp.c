@@ -75,6 +75,7 @@ const char ESP_UPLOAD_END[] = "\r\nConnection: close\r\n\r\n";
 const char ESP_UPLOAD_CONTENT_ORIGIN[] = "origin=";
 const char ESP_UPLOAD_CONTENT_DATA[] = "&data=";
 const char ESP_UPLOAD_CONTENT_RSSI[] = "&rssi=";
+const char ESP_UPLOAD_CONTENT_AGE[] = "&age=";
 const char UKHASNET_IP[] = "\"TCP\",\"212.71.255.157\",80";
 
 static void flash_lock(void)
@@ -287,6 +288,8 @@ static void esp_process_msg(esp_message_t* msg)
     uint16_t contentlen;
     char contentlen_s[3];
     char rssilen_s[6];
+    uint32_t age;
+    char agelen_s[6];
 
     /* Flush serial buffer */
     while(sdGetTimeout(&SD1, TIME_IMMEDIATE) != Q_TIMEOUT);
@@ -336,14 +339,20 @@ static void esp_process_msg(esp_message_t* msg)
                     strlen(ESP_STRING_STATUS), MS2ST(100));
             break;
         case ESP_MSG_SEND:
+            // Calculate age of this message
+            age = (uint32_t)(ST2MS(chVTTimeElapsedSinceX(curmsg->timestamp)));
             // Find length of the rssi bit
             chsnprintf(rssilen_s, 6, "%d", curmsg->rfm_packet.rssi);
+            // Find the length of the age bit
+            chsnprintf(agelen_s, 6, "%u", age);
             // Send the (up to) 64 byte message in the payload to the server
             contentlen = strlen((char *)curmsg->rfm_packet.payload)
                 + strlen(rssilen_s)
+                + strlen(agelen_s)
                 + strlen(ESP_UPLOAD_CONTENT_ORIGIN)
                 + strlen(ESP_UPLOAD_CONTENT_DATA)
                 + strlen(ESP_UPLOAD_CONTENT_RSSI)
+                + strlen(ESP_UPLOAD_CONTENT_AGE)
                 + strlen(esp_config.origin);
             chsnprintf(contentlen_s, 3, "%u", contentlen);
             // Reset buf pointer
@@ -358,7 +367,9 @@ static void esp_process_msg(esp_message_t* msg)
                     + strlen(ESP_UPLOAD_CONTENT_DATA)
                     + strlen((char *)curmsg->rfm_packet.payload)
                     + strlen(ESP_UPLOAD_CONTENT_RSSI)
-                    + strlen(rssilen_s));
+                    + strlen(rssilen_s)
+                    + strlen(ESP_UPLOAD_CONTENT_AGE)
+                    + strlen(agelen_s));
             esp_out_buf_ptr += strlen(esp_out_buf_ptr);
             sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                     strlen(esp_out_buf), MS2ST(500));
@@ -367,7 +378,8 @@ static void esp_process_msg(esp_message_t* msg)
             // Now begins the HTTP req
             // Reset buf pointer
             esp_out_buf_ptr = esp_out_buf;
-            chsnprintf(esp_out_buf_ptr, 512, "%s%u%s%s%s%s%s%s%d", ESP_UPLOAD_START,
+            chsnprintf(esp_out_buf_ptr, 512, "%s%u%s%s%s%s%s%s%d%s%u",
+                    ESP_UPLOAD_START,
                     contentlen,
                     ESP_UPLOAD_END,
                     ESP_UPLOAD_CONTENT_ORIGIN,
@@ -375,7 +387,9 @@ static void esp_process_msg(esp_message_t* msg)
                     ESP_UPLOAD_CONTENT_DATA,
                     curmsg->rfm_packet.payload,
                     ESP_UPLOAD_CONTENT_RSSI,
-                    curmsg->rfm_packet.rssi);
+                    curmsg->rfm_packet.rssi,
+                    ESP_UPLOAD_CONTENT_AGE,
+                    age);
             esp_out_buf_ptr += strlen(esp_out_buf_ptr);
             sdWriteTimeout(&SD1, (const uint8_t *)esp_out_buf,
                     strlen(esp_out_buf), MS2ST(500));
@@ -434,6 +448,7 @@ void esp_request(uint32_t opcode, rfm_packet_t* packet, uint8_t prio)
     // Construct the message (allow NULL pointers here)
     esp_message_t msg;
     msg.opcode = opcode;
+    msg.timestamp = chVTGetSystemTime();
     if(packet != NULL)
     {
         strncpy((char *)msg.rfm_packet.payload, (char *)packet->payload, 64);

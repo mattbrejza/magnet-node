@@ -114,6 +114,16 @@ int main(void) {
     }
 }
 
+/* On hard fault, copy HARDFAULT_PSP to the sp reg so gdb can give a trace */
+void **HARDFAULT_PSP;
+register void *stack_pointer asm("sp");
+void HardFault_Handler(void) {
+    asm("mrs %0, psp" : "=r"(HARDFAULT_PSP) : :);
+    stack_pointer = HARDFAULT_PSP;
+    GPIOA->ODR |= 1;
+    while(1);
+}
+
 /**
  * @}
  */
